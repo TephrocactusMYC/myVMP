@@ -1,0 +1,51 @@
+.text
+.global atomic_width_probe
+.type atomic_width_probe, %function
+atomic_width_probe:
+    ldarb w0, [x1]
+    ldarh w2, [x3]
+    ldar w4, [x5]
+    ldar x6, [x7]
+    stlrb w8, [x9]
+    stlrh w10, [x11]
+    stlr w12, [x13]
+    stlr x14, [x15]
+    ldxrb w16, [x17]
+    ldaxrb w18, [x19]
+    ldxrh w20, [x21]
+    ldaxrh w22, [x23]
+    ldxr w24, [x25]
+    ldaxr w26, [x27]
+    ldxr x28, [x29]
+    ldaxr x0, [x1]
+    stxrb w2, w3, [x4]
+    stlxrb w5, w6, [x7]
+    stxrh w8, w9, [x10]
+    stlxrh w11, w12, [x13]
+    stxr w14, w15, [x16]
+    stlxr w17, w18, [x19]
+    stxr w20, x21, [x22]
+    stlxr w23, x24, [x25]
+    cas w0, w1, [x2]
+    casa w3, w4, [x5]
+    casl w6, w7, [x8]
+    casal w9, w10, [x11]
+    cas x12, x13, [x14]
+    casa x15, x16, [x17]
+    casl x18, x19, [x20]
+    casal x21, x22, [x23]
+    casb w0, w1, [x2]
+    casalb w3, w4, [x5]
+    cash w6, w7, [x8]
+    casalh w9, w10, [x11]
+    ldadd w0, w1, [x2]
+    ldadda w3, w4, [x5]
+    ldaddl w6, w7, [x8]
+    ldaddal w9, w10, [x11]
+    ldadd x12, x13, [x14]
+    swpal x15, x16, [x17]
+    dmb ish
+    dsb sy
+    isb
+    ret
+.size atomic_width_probe, .-atomic_width_probe

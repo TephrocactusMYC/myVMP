@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  host-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        run: make -j"$(nproc)" && make test version-check docs-check
+      - name: Check patch formatting
+        run: git diff --check
+
+  runtime-blobs:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cross assemblers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            gcc-riscv64-linux-gnu binutils-riscv64-linux-gnu \
+            gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
+      - name: Verify generated runtimes
+        run: make check-aarch64-runtime check-riscv64-runtime check-arm32-runtime
