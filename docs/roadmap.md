@@ -2,7 +2,7 @@
 
 [中文](zh-CN/roadmap.md)
 
-The AArch64 and RV64 scalar function-protection baselines, dynamic operand codec,
+The AArch64, ARM32/A32 and RV64 scalar function-protection baselines, dynamic operand codec,
 CFG-aware bytecode, sibling multi-VM, real-ELF behavior suites and large-placement stress
 tests are implemented. The next priorities are intentionally concise.
 
@@ -20,7 +20,7 @@ tests are implemented. The next priorities are intentionally concise.
 - expand optional AArch64/RV64 SIMD/vector support behind explicit semantic and ABI tests;
 - extend remaining uncommon atomics, relocations and compiler-specific scalar forms;
 - strengthen shared-object, TLS, exception/unwind and very-large-application qualification;
-- decide whether ARM/A32 remains experimental or receives a broader maintained scope.
+- broaden ARM32 compiler-corpus qualification while keeping Thumb/VFP/NEON explicit opt-in work.
 
 ## Quality and analysis resistance
 
@@ -37,6 +37,16 @@ tests are implemented. The next priorities are intentionally concise.
   writer contracts;
 - keep ISA semantics and detours target-specific rather than contaminating common bytecode;
 - consider other executable formats only after ELF architecture boundaries remain clean.
+
+## Long-term Android native target
+
+- treat Android as an NDK `.so` protection and build-integration project, not as a claim
+  of Java/Kotlin/Dex or whole-APK obfuscation;
+- begin, if approved, with an arm64-v8a compatibility/liftability corpus before writing
+  Android artifacts;
+- require Android ET_DYN relocation/RELRO, 4/16 KiB alignment, JNI, Gradle, APK/AAB and
+  signing-order gates before declaring support;
+- see the research-only [Android native protection vision](android-vision.md).
 
 Roadmap items are not support promises. A feature becomes supported only after host
 semantics, target-runtime behavior, malformed-input handling and release documentation all

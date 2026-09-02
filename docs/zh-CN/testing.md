@@ -60,6 +60,17 @@ make check-riscv64-runtime
 压力 suite 覆盖 static/non-PIE、PIE、lazy/immediate binding、shared object、GOT/global、
 call、TLS/RELRO layout、batch、大位置、loop、switch 与 corpus 中的 RVC mixed-width。
 
+## ARM32/A32
+
+```sh
+make arm32-elf-parser-test
+make arm32-vm-protect-test
+make check-arm32-runtime
+```
+
+QEMU 门禁用两个 single-VM seed 与 sibling multi-VM 执行同一真实 ELF，覆盖 A32
+integer/logical、shifted operand、flags/predicate、memory、multiply、CFG block 与 return。
+
 发布前应从干净 build 开始，执行 `make docs-check`，验证所有 runtime blob，运行两架构完整门禁、ASan/UBSan 和
-`git diff --check`，再 `make package`、解包、检查 `--help`，并用包内工具执行 AArch64/
-RV64 smoke test。公开发布环境必须让主要门禁实际执行，而不是因缺工具跳过。
+`git diff --check`，再 `make package`、解包、检查 `--help`，并用包内工具执行 AArch64、
+ARM32、RV64 smoke test。公开发布环境必须让主要门禁实际执行，而不是因缺工具跳过。

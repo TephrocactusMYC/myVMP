@@ -1,9 +1,17 @@
-# myVMP
+# myVMP — Dynamic ELF Virtualization
+
+> **Turn selected native functions into per-build, encrypted virtual machines—without
+> changing your compiler or source tree.**
+
+![Language](https://img.shields.io/badge/C%2B%2B-20-00599C)
+![License](https://img.shields.io/badge/license-GPL--3.0--only-blue)
+![Targets](https://img.shields.io/badge/ELF-AArch64%20%7C%20ARM32%20A32%20%7C%20RV64-success)
+![VM](https://img.shields.io/badge/VM-dynamic%20sibling%20profiles-purple)
 
 [中文 README](README.zh-CN.md) · [Documentation](docs/index.md) · [中文文档](docs/zh-CN/index.md) · Version 0.1.0
 
-myVMP is an experimental, function-level ELF virtualizer for AArch64 and RV64, with a
-smaller ARM/A32 backend. It lifts selected linked functions into an architecture-neutral
+myVMP is a deployable, function-level ELF virtualizer for **AArch64, ARM32/A32 and RV64**.
+It lifts selected linked functions into an architecture-neutral
 IR, encodes them as seed-specific VM bytecode, embeds a native interpreter and encrypted
 payload, then installs a safe entry detour in a new ELF. The input is never modified.
 
@@ -15,7 +23,7 @@ payload, then installs a safe entry detour in a new ELF. The input is never modi
   encryption, immediate lowering, dispatcher constants, handler variants and trap fill.
 - **Real sibling multi-VM:** basic blocks can be owned by two independently seeded VM
   profiles with validated cross-profile bridges; this is not a static second dispatcher.
-- **Cross-ISA architecture:** AArch64 and RV64 share IR, bytecode, profiles, manifests and
+- **Three native backends:** AArch64, ARM32/A32 and RV64 share IR, bytecode, profiles, manifests and
   quality infrastructure while retaining ISA-specific lifters, runtimes and detours.
 - **Fail closed:** unsupported instructions, relocations, malformed ELF ranges and unsafe
   patch plans are rejected before publication.
@@ -24,6 +32,22 @@ payload, then installs a safe entry detour in a new ELF. The input is never modi
 
 myVMP is a research project, not a claim of irreversible protection. Use it on selected,
 well-tested functions and evaluate the security/performance trade-off for your threat model.
+
+### What a successful ARM32 run looks like
+
+```text
+protected=true
+reason=ARM32 function virtualized with two sibling VM profiles
+native_size=68
+bytecode_blocks=5
+vm_mode=sibling
+qemu original/protected behavior: identical
+```
+
+The repository exercises real protected ELF files under QEMU, checks multi-seed diversity,
+and rejects unsupported input before publishing an output. This makes myVMP suitable for
+protecting a focused set of high-value functions in a real build pipeline—not merely for
+generating bytecode demonstrations.
 
 ## Build
 

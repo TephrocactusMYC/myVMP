@@ -36,8 +36,9 @@ cryptographic guarantee.
 
 Protection is rejected for unsupported machines/classes, missing or zero-sized symbols,
 unknown instructions, unsafe relocation ranges, unrepresentable branches, invalid CFG or
-VM metadata, payload/runtime limits and inconsistent sibling partitions. ARM/A32 rejects
-Thumb and multi-VM. x86-64 target protection is not implemented.
+VM metadata, payload/runtime limits and inconsistent sibling partitions. ARM32/A32 rejects
+Thumb, VFP/NEON and privileged families; sibling multi-VM is supported. x86-64 target
+protection is not implemented.
 
 The exact AArch64/RV64 instruction boundary is defined by decoder/lifter code and release
 fixtures. Optional SIMD/vector and platform-specific families not covered by regression

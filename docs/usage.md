@@ -158,16 +158,20 @@ The command exits with status 1 if any supplied threshold fails. For meaningful
 function-level metrics, extract symbol/payload byte ranges rather than comparing two
 entire binaries dominated by unchanged application code.
 
-## ARM/A32 experimental backend
+## ARM32/A32 backend
 
 ```sh
 arm-linux-gnueabihf-gcc -O2 -g -marm -fno-inline -fno-stack-protector \
   app.c -o app.arm32
 ./build/myvmp protect app.arm32 verify_token app.protected.arm32 1001
+./build/myvmp protect app.arm32 verify_token app.multi.arm32 1001 --multi-vm 2002
 qemu-arm -L /usr/arm-linux-gnueabihf ./app.protected.arm32
 ```
 
-This backend handles a controlled ARM-state subset. Thumb and multi-VM are not supported.
+The backend supports little-endian ELF32 ARM-state scalar functions, dynamic opcode and
+operand codecs, CFG block shuffling, native/internal calls, direct and non-PIE absolute
+far detours, manifests, batch protection and sibling multi-VM. Thumb, VFP/NEON,
+privileged instructions and arbitrary compiler output remain fail-closed boundaries.
 
 ## Troubleshooting
 

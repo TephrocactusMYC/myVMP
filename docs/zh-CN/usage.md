@@ -86,15 +86,18 @@ cmp original.out protected.out
 `--max-size-ratio` 门槛；失败时退出码为 1。函数级评估应比较提取出的函数/payload 区间，
 而不是被大量未保护代码主导的整个 ELF。
 
-## ARM/A32 实验后端
+## ARM32/A32 后端
 
 ```sh
 arm-linux-gnueabihf-gcc -O2 -g -marm -fno-inline -fno-stack-protector app.c -o app.arm32
 ./build/myvmp protect app.arm32 verify_token app.protected.arm32 1001
+./build/myvmp protect app.arm32 verify_token app.multi.arm32 1001 --multi-vm 2002
 qemu-arm -L /usr/arm-linux-gnueabihf ./app.protected.arm32
 ```
 
-该后端只覆盖受控 ARM-state 子集，不支持 Thumb 和 multi-VM。
+该后端支持小端 ELF32 ARM-state 标量函数、动态 opcode/operand codec、CFG block
+重排、原生/内部调用、直接与非 PIE 绝对远跳、manifest、批量保护和 sibling multi-VM。
+Thumb、VFP/NEON、特权指令及任意编译器输出仍属于失败关闭边界。
 
 ## 常见问题
 

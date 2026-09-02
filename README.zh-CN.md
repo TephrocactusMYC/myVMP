@@ -1,9 +1,16 @@
-# myVMP
+# myVMP — 动态 ELF 虚拟化保护
+
+> **无需改变编译器或源码工程，把选定的原生函数转换为每次构建均不同的加密虚拟机。**
+
+![Language](https://img.shields.io/badge/C%2B%2B-20-00599C)
+![License](https://img.shields.io/badge/license-GPL--3.0--only-blue)
+![Targets](https://img.shields.io/badge/ELF-AArch64%20%7C%20ARM32%20A32%20%7C%20RV64-success)
+![VM](https://img.shields.io/badge/VM-dynamic%20sibling%20profiles-purple)
 
 [English README](README.md) · [英文文档](docs/index.md) · [中文文档](docs/zh-CN/index.md) · 版本 0.1.0
 
-myVMP 是一个实验性的函数级 ELF 虚拟化保护工具，主要支持 AArch64 和 RV64，并提供
-范围较小的 ARM/A32 后端。它把已链接 ELF 中选定的函数提升为架构无关 IR，编码为随
+myVMP 是一个可落地的函数级 ELF 虚拟化保护工具，支持 **AArch64、ARM32/A32 和 RV64**。
+它把已链接 ELF 中选定的函数提升为架构无关 IR，编码为随
 seed 变化的 VM 字节码，嵌入原生解释器和加密载荷，再向新 ELF 安装安全入口跳板。
 输入文件永远不会被原地修改。
 
@@ -14,7 +21,7 @@ seed 变化的 VM 字节码，嵌入原生解释器和加密载荷，再向新 E
   立即数降级、dispatcher 常量、handler 变体和原生函数体填充。
 - **真实 sibling multi-VM：**基本块由两个独立 profile 动态持有，并通过经过验证的
   bridge 跨 VM 执行，而不是静态放置第二个 dispatcher。
-- **跨 ISA 架构：**AArch64 和 RV64 共享 IR、字节码、profile、manifest 和质量设施，
+- **三种原生后端：**AArch64、ARM32/A32 和 RV64 共享 IR、字节码、profile、manifest 和质量设施，
   同时保留独立的 lifter、runtime 与跳板实现。
 - **失败关闭：**不支持的指令、危险重定位、畸形 ELF 和不安全 patch 计划会在发布前拒绝。
 - **可度量：**提供可复现 manifest、字节暴露指标、多 seed 差异门禁、QEMU 行为对比和
@@ -22,6 +29,20 @@ seed 变化的 VM 字节码，嵌入原生解释器和加密载荷，再向新 E
 
 myVMP 是研究项目，不宣称保护不可逆。建议只保护经过充分测试的关键函数，并结合自身
 威胁模型评估安全性与性能成本。
+
+### ARM32 成功运行示例
+
+```text
+protected=true
+reason=ARM32 function virtualized with two sibling VM profiles
+native_size=68
+bytecode_blocks=5
+vm_mode=sibling
+qemu 原始/保护后行为：一致
+```
+
+仓库会在 QEMU 中执行真实保护后 ELF，检查多 seed 差异，并在发布输出前拒绝不支持的
+输入。因此它可以进入真实构建流水线，保护少量高价值函数，而不只是字节码演示项目。
 
 ## 构建
 

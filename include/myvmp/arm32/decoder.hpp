@@ -11,7 +11,14 @@ namespace myvmp::arm32 {
 enum class Mnemonic {
     AddImm,
     SubImm,
+    AndImm,
+    OrrImm,
+    EorImm,
+    BicReg,
+    MvnReg,
     MovImm,
+    MovWide,
+    MovTop,
     MovReg,
     AddReg,
     SubReg,
@@ -20,6 +27,8 @@ enum class Mnemonic {
     EorReg,
     CompareImm,
     CompareReg,
+    TestImm,
+    TestReg,
     Multiply,
     LoadImmOffset,
     StoreImmOffset,
@@ -39,6 +48,11 @@ struct DecodedInstruction {
     ir::ShiftKind shift_kind = ir::ShiftKind::Lsl;
     std::uint8_t shift_amount{};
     std::uint8_t mem_width = 4;
+    bool sets_flags = false;
+};
+
+struct LiftContext {
+    std::uint64_t region_va = 0;
 };
 
 class Decoder {
@@ -48,7 +62,8 @@ public:
 
 class Lifter {
 public:
-    ir::Program lift(const std::vector<std::uint32_t>& words) const;
+    ir::Program lift(const std::vector<std::uint32_t>& words,
+                     const LiftContext& context = {}) const;
 };
 
 const char* to_string(Mnemonic mnemonic) noexcept;

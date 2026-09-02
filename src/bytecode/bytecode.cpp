@@ -1117,7 +1117,7 @@ Image encode(const ir::Program& program, EncodeOptions options) {
         case ir::Opcode::AddRegShiftedSetFlags:
             append_u8(payload, options.profile.physical(Opcode::AddRegShiftedSetFlags64));
             append_u8(payload, inst.dst);
-            append_u8(payload, inst.src);
+            append_u8(payload, inst.rhs);
             append_u8(payload, inst.rhs);
             append_u8(payload, static_cast<std::uint8_t>(inst.shift_kind));
             append_u8(payload, inst.shift_amount);

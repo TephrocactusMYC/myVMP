@@ -12,7 +12,7 @@
 | macOS host | Supported via container/Linux VM | Native Mach-O host build is not supported |
 | AArch64 ELF64 little-endian | Primary target | Executables, PIE and shared objects; broad scalar user-mode scope |
 | RV64 ELF64 little-endian | Primary target | Executables, PIE and shared objects; scalar/RVC workflow covered |
-| ARM ELF32, A32 state | Experimental | Smaller subset; no Thumb or sibling multi-VM |
+| ARM ELF32, A32 state | Supported scalar target | Executables, dynamic codecs and sibling multi-VM; no Thumb/VFP/NEON |
 | x86-64 target | Not implemented | Parser recognizes the machine but protector rejects it |
 | PE/Mach-O targets | Not supported | The protected output format remains Linux ELF |
 

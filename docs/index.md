@@ -25,6 +25,8 @@ security model before integrating myVMP into a release pipeline.
 - [Research and references](research.md) — reviewed projects, papers, standards and the
   concrete ideas derived from them.
 - [Roadmap](roadmap.md) — concise post-release priorities.
+- [Android native protection vision](android-vision.md) — research-only feasibility,
+  integration route, reuse analysis and decision gates for a future NDK `.so` target.
 
 ## Project governance
 

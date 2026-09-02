@@ -38,6 +38,8 @@ distance calculation is shared and overflow safe. ELF64 AArch64 and RV64 writing
 target-parameterized layout engine, but detour encodings remain separate. AArch64 can use
 a direct branch, a position-independent `ADRP/ADD/BR` far detour, or the supported
 non-PIE literal fallback. RV64 selects its corresponding near/far sequence.
+ARM32 uses an A32 direct branch when representable and an eight-byte absolute literal
+detour for far ET_EXEC placement; overflow and insufficient-entry cases fail closed.
 
 ### ISA frontends
 
@@ -82,6 +84,11 @@ The runtime payload contains native dispatcher code, immutable/encrypted profile
 metadata, physical block metadata and encrypted bytecode. Architectural state is held in
 a complete VM frame. Native call gates synchronize the state required by the target ABI
 before calling unvirtualized helpers and restore VM execution afterward.
+
+All three runtimes resolve a seed-specific physical opcode through runtime translation
+tables and decode an operand window using a position-, opcode- and owner-derived stream.
+ARM32 sibling mode assigns CFG blocks to either of two tables and changes domains at
+explicit VM control-flow edges, matching the common multi-VM contract.
 
 ### Protection orchestration
 

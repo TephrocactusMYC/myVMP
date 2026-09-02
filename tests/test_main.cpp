@@ -2568,6 +2568,24 @@ void test_arm32_decoder_and_lifter_to_vm() {
             "lifted ARM32 memory program result mismatch");
     require(memory[40] == 12 && memory[41] == 0 && memory[42] == 0 && memory[43] == 0,
             "lifted ARM32 store result mismatch");
+
+    const std::vector<std::uint32_t> compiler_scalar_words{
+        0xe3013234u, 0xe0800003u, 0xe30a3a55u, 0xe0200181u,
+        0xe3473fffu, 0xe0000003u, 0xe30535aau, 0xe592c000u,
+        0xe1803003u, 0xe5823004u, 0xe08c0003u, 0xe1500001u,
+        0xe3811001u, 0x82400007u, 0xe0000190u, 0xe12fff1eu,
+    };
+    require(!myvmp::arm32::Lifter{}.lift(compiler_scalar_words).instructions().empty(),
+            "Clang-generated ARM32 scalar corpus must lift as one function");
+
+    const auto adds = decoder.decode(0xe2900000u);
+    const auto tst = decoder.decode(0xe3100001u);
+    const auto bic = decoder.decode(0xe1c02001u);
+    const auto mvn = decoder.decode(0xe1e02001u);
+    require(adds && adds->sets_flags && tst && tst->mnemonic == myvmp::arm32::Mnemonic::TestImm &&
+                bic && bic->mnemonic == myvmp::arm32::Mnemonic::BicReg &&
+                mvn && mvn->mnemonic == myvmp::arm32::Mnemonic::MvnReg,
+            "ARM32 flags/test/BIC/MVN compiler forms must decode");
 }
 
 void test_arm32_runtime_payload_builder() {

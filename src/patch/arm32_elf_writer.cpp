@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cstring>
 #include <fstream>
+#include <limits>
+#include <stdexcept>
 #include <system_error>
 
 namespace myvmp::patch {
@@ -19,6 +21,10 @@ T* arm_object_at(std::vector<std::uint8_t>& bytes, std::uint64_t offset) {
 }
 
 std::uint32_t arm_align_up(std::uint32_t value, std::uint32_t alignment) {
+    if (alignment == 0 || (alignment & (alignment - 1u)) != 0 ||
+        value > std::numeric_limits<std::uint32_t>::max() - (alignment - 1u)) {
+        throw std::overflow_error("invalid or overflowing ARM32 alignment");
+    }
     return (value + alignment - 1u) & ~(alignment - 1u);
 }
 
@@ -60,7 +66,11 @@ ElfPatchResult Arm32ElfWriter::write(const std::filesystem::path& input,
         if (phdr->p_type == PT_LOAD) alignment = std::max(alignment, phdr->p_align);
     }
     if (!executable) { result.reason = "ARM32 function is not in an executable PT_LOAD"; return result; }
-    const auto executable_end = executable->p_offset + executable->p_filesz;
+    const auto executable_end64 = static_cast<std::uint64_t>(executable->p_offset) + executable->p_filesz;
+    if (executable_end64 > std::numeric_limits<std::uint32_t>::max()) {
+        result.reason = "ARM32 executable segment end overflows ELF32"; return result;
+    }
+    const auto executable_end = static_cast<std::uint32_t>(executable_end64);
     for (std::uint16_t i = 0; i < ehdr->e_phnum; ++i) {
         auto* phdr = arm_object_at<Elf32_Phdr>(bytes, ehdr->e_phoff + i * ehdr->e_phentsize);
         if (phdr && phdr != executable && phdr->p_type == PT_LOAD && phdr->p_offset >= executable_end && phdr->p_offset < next_offset) {
@@ -74,12 +84,25 @@ ElfPatchResult Arm32ElfWriter::write(const std::filesystem::path& input,
             shdr->sh_offset < next_offset) next_offset = shdr->sh_offset;
     }
     result.payload_offset = arm_align_up(executable_end, 16);
-    result.payload_va = executable->p_vaddr + (result.payload_offset - executable->p_offset);
-    const auto payload_end = static_cast<std::uint32_t>(result.payload_offset + payload.size());
-    const auto payload_va_end = static_cast<std::uint32_t>(result.payload_va + payload.size());
+    const auto payload_va64 = static_cast<std::uint64_t>(executable->p_vaddr) +
+                              (result.payload_offset - executable->p_offset);
+    const auto payload_end64 = result.payload_offset + payload.size();
+    const auto payload_va_end64 = payload_va64 + payload.size();
+    if (payload_va64 > std::numeric_limits<std::uint32_t>::max() ||
+        payload_end64 > std::numeric_limits<std::uint32_t>::max() ||
+        payload_va_end64 > std::numeric_limits<std::uint32_t>::max()) {
+        result.reason = "ARM32 payload layout overflows ELF32 address space"; return result;
+    }
+    result.payload_va = payload_va64;
+    const auto payload_end = static_cast<std::uint32_t>(payload_end64);
+    const auto payload_va_end = static_cast<std::uint32_t>(payload_va_end64);
     if (payload_va_end > next_va) { result.reason = "ARM32 executable segment has no safe payload VA gap"; return result; }
     const auto branch = encode_arm32_b(function.value, result.payload_va);
-    if (!branch) { result.reason = "ARM32 payload is outside direct branch range"; return result; }
+    const auto far_detour = !branch;
+    if (far_detour && (ehdr->e_type != ET_EXEC || function.size < 8)) {
+        result.reason = "ARM32 far payload requires an ET_EXEC function with at least 8 bytes";
+        return result;
+    }
     const auto function_offset = executable->p_offset + static_cast<std::uint32_t>(function.value - executable->p_vaddr);
     if (function_offset > bytes.size() || function.size > bytes.size() - function_offset) {
         result.reason = "ARM32 function bytes are out of bounds"; return result;
@@ -116,9 +139,18 @@ ElfPatchResult Arm32ElfWriter::write(const std::filesystem::path& input,
     }
     if (!executable) { result.reason = "ARM32 executable segment disappeared"; return result; }
     std::copy(payload.begin(), payload.end(), bytes.begin() + result.payload_offset);
-    std::memcpy(bytes.data() + function_offset, &*branch, 4);
+    std::size_t detour_size = 4;
+    if (branch) {
+        std::memcpy(bytes.data() + function_offset, &*branch, 4);
+    } else {
+        constexpr std::uint32_t load_pc_literal = 0xe51ff004u; // ldr pc, [pc, #-4]
+        const auto target = static_cast<std::uint32_t>(result.payload_va);
+        std::memcpy(bytes.data() + function_offset, &load_pc_literal, 4);
+        std::memcpy(bytes.data() + function_offset + 4, &target, 4);
+        detour_size = 8;
+    }
     if (erase_original_body) {
-        for (std::uint64_t offset = 4; offset < function.size; offset += 4) {
+        for (std::uint64_t offset = detour_size; offset < function.size; offset += 4) {
             const std::uint32_t udf = 0xe7f000f0u;
             std::memcpy(bytes.data() + function_offset + offset, &udf, 4);
         }
@@ -135,7 +167,9 @@ ElfPatchResult Arm32ElfWriter::write(const std::filesystem::path& input,
     std::filesystem::rename(temporary, output, error);
     if (error) { std::filesystem::remove(temporary); result.reason = "failed to publish ARM32 ELF: " + error.message(); return result; }
     result.success = true;
-    result.reason = "patched ARM32 VM payload into executable PT_LOAD";
+    result.reason = far_detour
+        ? "patched ARM32 VM payload with absolute far detour into executable PT_LOAD"
+        : "patched ARM32 VM payload into executable PT_LOAD";
     return result;
 }
 

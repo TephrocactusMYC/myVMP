@@ -32,7 +32,7 @@ myVMP 用于提高 Linux ELF 中选定 user-mode 函数的静态分析和常规 
 
 不支持 machine/class、symbol 缺失或 size 为零、未知指令、不安全 relocation、无法表示的
 branch、非法 CFG/VM metadata、payload/runtime 上限和不一致 sibling partition 都会拒绝。
-ARM/A32 不支持 Thumb/multi-VM；x86-64 target 尚未实现。runtime 保存 vector state 不代表
+ARM32/A32 不支持 Thumb、VFP/NEON 和特权指令，但已支持 sibling multi-VM；x86-64 target 尚未实现。runtime 保存 vector state 不代表
 未经回归的 SIMD/vector 语义已经支持。
 
 ## 操作建议

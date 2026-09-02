@@ -62,6 +62,13 @@ block、instruction 和 handler 多层改变表示。myVMP 不声称兼容或复
 - [Csmith](https://github.com/csmith-project/csmith) 启发可选随机 compiler-output 压力层；
   可复现的 checked-in deterministic fixtures 仍是主要回归。
 
+## Android 原生平台调研
+
+Android 远景评估以官方 NDK ABI、JNI、native build、16 KiB page、packaging/signing 文档和
+AOSP Bionic linker notes 为依据。结论是现有 AArch64 ELF 能力是很好的起点，但正式支持
+必须建立签名前 NDK `.so` pipeline 和 Android 专项兼容门禁。完整分析与来源见
+[Android 原生保护远景](android-vision.md)。
+
 ## 最终采用的思路
 
 函数级 binary virtualization、自有公共 IR、每构建/每出现 opcode 差异、统一 rolling

@@ -85,6 +85,14 @@ or reproduction of, VMProtect internals.
 Standards, rather than protector writeups, are authoritative for instruction semantics,
 relocations, calling conventions and ELF behavior.
 
+## Android native platform research
+
+The long-term Android assessment uses official Android NDK ABI, JNI, native-build,
+16 KiB page-size, packaging and signing documentation plus AOSP Bionic linker notes.
+It concludes that current AArch64 ELF machinery is a strong starting point, but Android
+support requires a pre-sign NDK `.so` pipeline and platform-specific compatibility gates.
+See [Android native protection vision](android-vision.md) for the analysis and sources.
+
 ## Testing methodology
 
 - [Csmith](https://github.com/csmith-project/csmith) informed the optional randomized

@@ -66,6 +66,18 @@ The stress suite covers static/non-PIE, PIE, lazy/immediate binding, shared obje
 global/GOT access, calls, TLS/RELRO-sensitive layouts, batch protection, large placement,
 loops, switches and mixed-width RVC/native instruction streams used by the corpus.
 
+## ARM32/A32 release gates
+
+```sh
+make arm32-elf-parser-test
+make arm32-vm-protect-test
+make check-arm32-runtime
+```
+
+The QEMU gate executes the same real ELF before and after protection with two independent
+single-VM seeds and sibling multi-VM. Its A32 corpus covers integer/logical operations,
+shifted operands, flags and predicates, memory, multiplication, CFG blocks and return.
+
 ## Quality acceptance
 
 Seed sweeps require unique payloads and manifests. Sibling suites require behavior
@@ -78,10 +90,10 @@ reviewed with the measurement logic.
 1. Start from a clean build directory and run `make -j$(nproc) test`.
 2. Run `make docs-check` to validate local links and bilingual document parity.
 3. Verify all checked-in runtime blobs.
-4. Run the complete AArch64 and RV64 gates available in the release environment.
+4. Run the complete AArch64, ARM32 and RV64 gates available in the release environment.
 5. Run ASan/UBSan and `git diff --check`.
 6. Build `make package`, unpack it in a temporary directory and run `myvmp --help`.
-7. Protect and execute one AArch64 and one RV64 smoke fixture using the packaged tool.
+7. Protect and execute one AArch64, ARM32 and RV64 smoke fixture using the packaged tool.
 8. Confirm English/Chinese docs and all relative links are included.
 9. Record compiler, cross-toolchain, QEMU and host versions with release artifacts.
 

@@ -2,7 +2,7 @@
 
 [English](../roadmap.md)
 
-AArch64/RV64 scalar 函数保护、动态 operand codec、CFG-aware bytecode、sibling multi-VM、
+AArch64、ARM32/A32、RV64 scalar 函数保护、动态 operand codec、CFG-aware bytecode、sibling multi-VM、
 真实 ELF 行为回归和大位置压力已经实现。后续优先级如下。
 
 ## 发布准备
@@ -19,7 +19,7 @@ AArch64/RV64 scalar 函数保护、动态 operand codec、CFG-aware bytecode、s
 - 在明确语义/ABI 测试后扩展可选 AArch64/RV64 SIMD/vector；
 - 扩展少见 atomic、relocation 和 compiler-specific scalar forms；
 - 加强 shared object、TLS、exception/unwind 和超大型应用 qualification；
-- 决定 ARM/A32 保持实验还是扩展为长期维护范围。
+- 扩大 ARM32 compiler corpus qualification，同时把 Thumb/VFP/NEON 保持为显式后续工作。
 
 ## 混淆质量
 
@@ -33,6 +33,16 @@ AArch64/RV64 scalar 函数保护、动态 operand codec、CFG-aware bytecode、s
 - 基于公共 IR/profile/codec/manifest/ELF64 writer 设计 x86-64 frontend/runtime；
 - ISA 语义和 detour 保持 target-specific，不污染公共 bytecode；
 - ELF 的架构边界稳定以后再考虑其他可执行格式。
+
+## Android 原生目标远景
+
+- 把 Android 定义为 NDK `.so` 保护与 build integration，不宣称 Java/Kotlin/Dex 或
+  whole-APK 混淆；
+- 若未来批准开发，先做 arm64-v8a compatibility/liftability corpus，再开始写 Android
+  artifact；
+- 声明支持前必须通过 Android ET_DYN relocation/RELRO、4/16 KiB、JNI、Gradle、APK/AAB
+  和签名顺序门禁；
+- 详见仅调研的 [Android 原生保护远景](android-vision.md)。
 
 路线项目不是支持承诺。只有 host semantics、target runtime behavior、畸形输入处理与发布文档
 一起通过后，功能才算真正支持。

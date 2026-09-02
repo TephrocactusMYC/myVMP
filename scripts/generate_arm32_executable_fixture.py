@@ -30,11 +30,19 @@ words = [
     0xE3500014,       # cmp r0, #20
     0x82400003,       # subhi r0, r0, #3
     0xE0000190,       # mul r0, r0, r1
+    0xE3A03003,       # mov r3, #3
+    0xE2533001,       # loop: subs r3, r3, #1
+    0x1AFFFFFD,       # bne loop
+    0xE2900000,       # adds r0, r0, #0
+    0xE2500000,       # subs r0, r0, #0
+    0xE3100001,       # tst r0, #1
+    0xE1C02001,       # bic r2, r0, r1
+    0xE1E02001,       # mvn r2, r1
     0xE12FFF1E,       # bx lr
 ]
 code = b"".join(struct.pack("<I", word) for word in words)
 candidate_offset = 14 * 4
-candidate_size = 9 * 4
+candidate_size = 17 * 4
 
 strtab = b"\0_start\0candidate_arm32_vm\0"
 start_name = 1

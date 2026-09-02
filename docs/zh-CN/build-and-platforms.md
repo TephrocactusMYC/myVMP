@@ -12,7 +12,7 @@
 | macOS host | 通过 container/Linux VM 支持 | 不支持原生 Mach-O host build |
 | AArch64 ELF64 小端 | 主要目标 | executable、PIE、shared object，广泛 scalar user-mode |
 | RV64 ELF64 小端 | 主要目标 | executable、PIE、shared object、scalar/RVC 工作流 |
-| ARM ELF32 A32 | 实验 | 范围较小，无 Thumb/multi-VM |
+| ARM ELF32 A32 | 支持的标量目标 | executable、动态 codec 与 sibling multi-VM；无 Thumb/VFP/NEON |
 | x86-64 target | 未实现 | parser 能识别，但 protector 明确拒绝 |
 | PE/Mach-O target | 不支持 | 保护输出仍是 Linux ELF |
 

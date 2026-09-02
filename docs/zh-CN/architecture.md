@@ -29,6 +29,8 @@ flowchart LR
 writer。PC 相对距离采用公共的无溢出计算；AArch64/RV64 共用参数化 ELF64 布局引擎，
 但各自保留跳板编码。AArch64 会按距离选择直接分支、位置无关 `ADRP/ADD/BR` 远跳，
 或受支持的 non-PIE literal fallback。
+ARM32 在范围内使用 A32 直接分支，远距离 ET_EXEC 使用 8 字节绝对 literal 跳板；地址
+溢出或入口空间不足时失败关闭。
 
 `src/arm64`、`src/riscv64` 和 `src/arm32` 只负责原生语义：寄存器角色、宽度、PC 相对
 寻址与副作用。未知指令不会作为 opaque opcode 放行，而是拒绝整个函数。
@@ -46,6 +48,10 @@ sibling owner、bridge metadata 和验证。host normalization 只用于测试�
 
 `runtime/*.S` 是可审查的原生解释器源码。生成脚本用交叉工具链产生仓库内的 byte include，
 因此普通宿主构建不要求 cross assembler；`make check-*-runtime` 验证源码与 blob 一致。
+
+三种 runtime 都在执行时通过 seed-specific translation table 解析物理 opcode，并以位置、
+物理 opcode 与 block owner 派生的流解码 operand window。ARM32 sibling 模式把 CFG block
+分配给两个 profile，并在显式 VM 控制流边上切换 domain。
 
 `src/protect` 串联验证、lifting、encoding、runtime 和 patch。各 ISA protector 返回公共
 结果；sidecar 发布集中处理并在索引 sibling metadata 前验证。`protect-many` 会 staging

@@ -457,7 +457,7 @@ int lift_riscv64(int argc, char** argv) {
 
 int lift_elf_symbol(int argc, char** argv) {
     if (argc != 4) {
-        std::cerr << "usage: myvmp lift-elf-symbol <aarch64-elf> <symbol>\n";
+        std::cerr << "usage: myvmp lift-elf-symbol <elf> <symbol>\n";
         return 2;
     }
     const auto elf = myvmp::elf::ElfFile::parse(argv[2]);
@@ -474,7 +474,17 @@ int lift_elf_symbol(int argc, char** argv) {
         throw std::runtime_error("function bytes are outside file-backed PT_LOAD segments");
     }
     myvmp::ir::Program program;
-    if (elf.machine() == myvmp::elf::Machine::AArch64) {
+    if (elf.machine() == myvmp::elf::Machine::Arm) {
+        std::vector<std::uint32_t> words;
+        words.reserve(bytes->size() / 4u);
+        for (std::size_t offset = 0; offset < bytes->size(); offset += 4u) {
+            words.push_back(static_cast<std::uint32_t>((*bytes)[offset]) |
+                            (static_cast<std::uint32_t>((*bytes)[offset + 1]) << 8u) |
+                            (static_cast<std::uint32_t>((*bytes)[offset + 2]) << 16u) |
+                            (static_cast<std::uint32_t>((*bytes)[offset + 3]) << 24u));
+        }
+        program = myvmp::arm32::Lifter{}.lift(words, {.region_va = symbol->value});
+    } else if (elf.machine() == myvmp::elf::Machine::AArch64) {
         const myvmp::arm64::LiftContext context{
             .region_va = symbol->value,
             .read_memory = [&elf](std::uint64_t address, std::uint8_t width) { return elf.read_value_va(address, width); },
@@ -483,7 +493,7 @@ int lift_elf_symbol(int argc, char** argv) {
     } else if (elf.machine() == myvmp::elf::Machine::RiscV) {
         program = myvmp::riscv64::Lifter{}.lift_bytes(
             *bytes, {.region_va = symbol->value, .instruction_offsets = {}});
-    } else throw std::runtime_error("lift-elf-symbol requires AArch64 or RV64 ELF");
+    } else throw std::runtime_error("lift-elf-symbol requires ARM32, AArch64, or RV64 ELF");
     const auto output = ir_to_text(program);
     std::cout << output;
     write_debug_log("lift-elf-symbol.ir.log", output);
@@ -603,8 +613,7 @@ myvmp::protect::ProtectionResult protect_one(const std::filesystem::path& input,
     const auto image = myvmp::elf::ElfFile::parse(input);
     switch (image.machine()) {
     case myvmp::elf::Machine::Arm:
-        if (secondary_seed) throw std::runtime_error("sibling VM mode currently requires a 64-bit target");
-        return myvmp::protect::Arm32Protector{}.protect_file(input, output, symbol, seed);
+        return myvmp::protect::Arm32Protector{}.protect_file(input, output, symbol, seed, secondary_seed);
     case myvmp::elf::Machine::RiscV:
         return myvmp::protect::Riscv64Protector{}.protect_file(input, output, symbol, seed, secondary_seed);
     case myvmp::elf::Machine::AArch64:
