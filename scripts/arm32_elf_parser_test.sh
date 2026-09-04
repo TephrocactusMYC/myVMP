@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 object="$root/build/fixtures/arm32_parser_probe.o"
 log="$root/build/logs/arm32-parser.log"
 mkdir -p "$root/build/fixtures" "$root/build/logs"

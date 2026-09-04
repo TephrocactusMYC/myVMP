@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 tool="$root/build/myvmp"
 fixture_dir="$root/build/fixtures/generated"
 log_dir="$root/build/logs/generated/protect-dry-run"

@@ -10,6 +10,7 @@
 - [使用指南](usage.md)：单函数、multi-VM、批量保护和 CLI。
 - [编译与平台](build-and-platforms.md)：宿主环境、交叉工具链、支持目标和发布包。
 - [分析报告](analysis-and-reports.md)：dry-run、manifest、质量指标和自动报告。
+- [公开实测快照](readme-benchmarks.md)：README 使用的跨架构质量、体积和 QEMU 结果。
 - [测试](testing.md)：单元测试、QEMU、大 ELF、差异度和发布门禁。
 
 ## 设计文档
@@ -27,7 +28,6 @@
 - [更新日志](../../CHANGELOG.md)
 - [贡献指南](../../CONTRIBUTING.zh-CN.md)
 - [安全政策](../../SECURITY.zh-CN.md)
-- [发布与签名](../../RELEASING.zh-CN.md)
 - [GPL-3.0-only 许可证](../../LICENSE)
 
 ```text

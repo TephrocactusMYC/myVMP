@@ -116,5 +116,5 @@ debug/development object；strip 工具并打包中英文文档；压缩包位�
 `myvmp-<version>/`。环境支持静态 C++ 链接时可以增加
 `STATIC=1`。
 
-版本来自 `VERSION`，CLI、archive 名称和根目录必须一致。签名 tag、checksum manifest 与
-detached signature 流程见[发布指南](../../RELEASING.zh-CN.md)。0.1.0 仍是技术预览版。
+版本来自 `VERSION`，CLI、archive 名称和根目录必须一致。release 发布和签名由仓库托管
+平台的公开流程维护。

@@ -40,6 +40,8 @@ text = Path(sys.argv[1]).read_text(encoding="utf-8", errors="ignore")
 print(" ".join("0x" + m.group(1) for m in re.finditer(r"^\s*[0-9a-f]+:\s+([0-9a-f]{8})\s+", text, re.M)))
 PY
 )"
+    # Intentional splitting: each whitespace-separated machine word is one CLI argument.
+    # shellcheck disable=SC2086
     ./"$build_dir/myvmp" --log-dir "$log_dir/$name.myvmp" lift-arm64 $words > "$ir_path" 2> "$err_path"
     printf '%s\n' "micro lift passed: $name"
 }

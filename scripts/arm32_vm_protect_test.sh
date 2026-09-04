@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+mkdir -p "$root/build/logs"
 python3 "$root/scripts/generate_arm32_executable_fixture.py" >/dev/null
 input="$root/build/fixtures/arm32_vm_probe"
 output="$root/build/fixtures/arm32_vm_probe.protected"

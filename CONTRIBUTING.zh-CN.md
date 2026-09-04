@@ -17,13 +17,16 @@
 make -j$(nproc)
 make test
 make docs-check
+make style-check
 ```
 
 按 `docs/zh-CN/testing.md` 运行相关目标行为、runtime blob 和质量门禁。新增逻辑操作需要
 decoder/lifter test、host semantics、native handler、畸形输入处理和 QEMU 前后行为对比。
 
-使用 C++20，保持接口小而明确，优先复用公共 format/validator，并让
-`git diff --check` 通过。
+使用 C++20 和四空格缩进，不允许 tab 或行尾空白；public C++ header 以 `#pragma once`
+开头，文本使用 UTF-8/LF 并以换行结束。保持接口小而明确，优先复用公共
+format/validator。CI 会用 GCC/Clang、`-Werror` 以及严格的 format、shadow、
+preprocessor、cast diagnostics 编译。
 
 PR 应说明安全/正确性问题、架构影响、执行过的测试、性能/体积变化和格式兼容性影响。
 用户可见变更应加入 `CHANGELOG.md` 的 `Unreleased`。

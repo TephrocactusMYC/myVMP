@@ -39,7 +39,7 @@ LIB_OBJS := \
 	$(BUILD_DIR)/src/vm/multi_vm.o \
 	$(BUILD_DIR)/src/vm/vm.o
 
-.PHONY: all test version-check docs-check check-release-tools release-check generate-fixtures check-generated-fixtures generate-arm32-runtime check-arm32-runtime generate-aarch64-runtime check-aarch64-runtime generate-riscv64-runtime check-riscv64-runtime integration-test arm32-elf-parser-test arm32-vm-protect-test arm64-integration-test generated-fixture-test arm64-coverage-report arm64-liftability-report arm64-protect-dry-run-test arm64-elf-patch-test arm64-vm-protect-test arm64-far-elf-test arm64-micro-lift-test bytecode-seed-sweep multi-vm-quality-test riscv64-multi-vm-quality-test riscv64-elf-stress-test riscv64-fixture-test riscv64-liftability-report riscv64-vm-protect-test asm-diff release package clean
+.PHONY: all test version-check docs-check style-check check-release-tools release-check generate-fixtures check-generated-fixtures generate-arm32-runtime check-arm32-runtime generate-aarch64-runtime check-aarch64-runtime generate-riscv64-runtime check-riscv64-runtime integration-test arm32-elf-parser-test arm32-vm-protect-test arm64-integration-test generated-fixture-test arm64-coverage-report arm64-liftability-report arm64-protect-dry-run-test arm64-elf-patch-test arm64-vm-protect-test arm64-far-elf-test arm64-micro-lift-test bytecode-seed-sweep multi-vm-quality-test riscv64-multi-vm-quality-test riscv64-elf-stress-test riscv64-fixture-test riscv64-liftability-report riscv64-vm-protect-test asm-diff release package clean
 
 all: $(BUILD_DIR)/myvmp $(BUILD_DIR)/myvmp_demo $(BUILD_DIR)/myvmp_tests
 
@@ -65,11 +65,14 @@ version-check: $(BUILD_DIR)/myvmp
 docs-check:
 	python3 scripts/check_docs.py
 
+style-check:
+	python3 scripts/check_style.py
+
 check-release-tools:
 	@command -v clang >/dev/null || { echo "release check requires clang (install the Ubuntu clang package)" >&2; exit 1; }
 	@command -v readelf >/dev/null || { echo "release check requires readelf (install binutils)" >&2; exit 1; }
 
-release-check: check-release-tools test version-check docs-check check-aarch64-runtime check-riscv64-runtime check-arm32-runtime
+release-check: check-release-tools test version-check docs-check style-check check-aarch64-runtime check-riscv64-runtime check-arm32-runtime
 	git diff --check
 
 riscv64-fixture-test: $(BUILD_DIR)/myvmp
@@ -167,7 +170,7 @@ release:
 	cp README.md $(RELEASE_DIR)/README.md
 	cp README.zh-CN.md $(RELEASE_DIR)/README.zh-CN.md
 	cp LICENSE NOTICE VERSION CHANGELOG.md CONTRIBUTING.md CONTRIBUTING.zh-CN.md \
-		SECURITY.md SECURITY.zh-CN.md RELEASING.md RELEASING.zh-CN.md $(RELEASE_DIR)/
+		SECURITY.md SECURITY.zh-CN.md $(RELEASE_DIR)/
 	mkdir -p $(RELEASE_DIR)/scripts
 	cp scripts/generate_analysis_report.py $(RELEASE_DIR)/scripts/
 	mkdir -p $(RELEASE_DIR)/docs

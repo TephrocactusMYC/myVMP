@@ -1,7 +1,7 @@
-# myVMP — Dynamic ELF Virtualization
+# myVMP — Dynamic, Multi-Architecture ELF Virtualization
 
-> **Turn selected native functions into per-build, encrypted virtual machines—without
-> changing your compiler or source tree.**
+> **Protect the code that matters. Turn selected ARM32, AArch64 and RV64 functions into
+> encrypted, per-build virtual machines—directly in a linked ELF.**
 
 ![Language](https://img.shields.io/badge/C%2B%2B-20-00599C)
 ![License](https://img.shields.io/badge/license-GPL--3.0--only-blue)
@@ -10,44 +10,80 @@
 
 [中文 README](README.zh-CN.md) · [Documentation](docs/index.md) · [中文文档](docs/zh-CN/index.md) · Version 0.1.0
 
-myVMP is a deployable, function-level ELF virtualizer for **AArch64, ARM32/A32 and RV64**.
-It lifts selected linked functions into an architecture-neutral
-IR, encodes them as seed-specific VM bytecode, embeds a native interpreter and encrypted
-payload, then installs a safe entry detour in a new ELF. The input is never modified.
+myVMP is a deployable, function-level protector for **ARM32/A32, AArch64 and RV64 ELF**.
+Point it at high-value symbols—license checks, algorithms, protocol logic or key
+derivation—and it replaces their native control flow with an embedded VM runtime and
+encrypted bytecode. No LLVM fork, compiler plugin or source-tree integration is required,
+and the original ELF is never modified.
 
 ## Why myVMP?
 
 - **Binary-level workflow:** protects selected symbols in already linked ELF executables
   and shared objects; no compiler plugin is required.
-- **Dynamic per-build VMs:** seeds change opcode maps, operand encoding, block layout,
-  encryption, immediate lowering, dispatcher constants, handler variants and trap fill.
+- **A different VM for every build:** seeds change opcode maps, operand codecs, block
+  ownership/layout, encryption, immediate lowering, dispatcher constants, handler
+  variants and destroyed-body trap fill—not just a bytecode XOR key.
 - **Real sibling multi-VM:** basic blocks can be owned by two independently seeded VM
   profiles with validated cross-profile bridges; this is not a static second dispatcher.
-- **Three native backends:** AArch64, ARM32/A32 and RV64 share IR, bytecode, profiles, manifests and
-  quality infrastructure while retaining ISA-specific lifters, runtimes and detours.
+- **Three production paths, one design:** AArch64, ARM32/A32 and RV64 share semantic IR,
+  bytecode/profile APIs, manifests and quality gates while retaining audited ISA-specific
+  lifters, runtimes and range-safe detours.
+- **Selective by design:** protect one function or an explicit set with `protect-many`,
+  keeping startup time and file growth focused on security-critical code.
 - **Fail closed:** unsupported instructions, relocations, malformed ELF ranges and unsafe
   patch plans are rejected before publication.
 - **Measurable quality:** reproducible manifests, byte exposure metrics, multi-seed
   diversity gates, QEMU behavior comparison and large-ELF stress tests ship with the tree.
 
-myVMP is a research project, not a claim of irreversible protection. Use it on selected,
-well-tested functions and evaluate the security/performance trade-off for your threat model.
+### What protection changes
 
-### What a successful ARM32 run looks like
+This is real AArch64 output from the checked-in `candidate_branch_ops` fixture. The
+76-byte native loop becomes an entry detour; the remaining native body is destroyed with
+seed-derived traps. Its semantics execute from encrypted VM blocks in the appended
+payload.
 
 ```text
-protected=true
-reason=ARM32 function virtualized with two sibling VM profiles
-native_size=68
-bytecode_blocks=5
-vm_mode=sibling
-qemu original/protected behavior: identical
+before                                      after
+400780: mov  x5, x0                        400780: b    0x47d720
+400784: mov  x1, #0                        400784: brk  #0x175a
+40078c: lsl  x7, x5, #1                    400788: brk  #0xfef1
+400790: add  x4, x5, x1                    40078c: brk  #0xeb9c
+   ... conditional loop ...                   ... seed-derived traps ...
+4007c4: b.ne 0x400790                      4007c8: brk  #0x3381
+4007c8: ret
 ```
 
-The repository exercises real protected ELF files under QEMU, checks multi-seed diversity,
-and rejects unsupported input before publishing an output. This makes myVMP suitable for
-protecting a focused set of high-value functions in a real build pipeline—not merely for
-generating bytecode demonstrations.
+### Measured protection quality
+
+These are real repository fixtures protected in sibling multi-VM mode and executed under
+QEMU. Quality compares the **original function bytes** with the **actual encrypted VM
+block bytes**, not with the mostly unchanged whole ELF.
+
+| Target | Native → encrypted VM bytes | Entropy before → after | Same-position bytes | 32/64-bit native-word exposure | QEMU |
+|---|---:|---:|---:|---:|---:|
+| ARM32/A32 | 68 → 264 | 4.128 → 7.242 | 0 | 0 / 0 | identical |
+| AArch64 | 76 → 197 | 4.682 → 7.081 | 0 | 0 / 0 | identical |
+| RV64 | 32 → 141 | 4.601 → 6.627 | 0 | 0 / 0 | identical |
+
+Literal exposure was also zero in every sample and all quality thresholds passed. These
+metrics are regression evidence—not a claim of irreversible protection.
+
+### Selective protection and real ELF scale
+
+| Case | Original ELF | Protected ELF | Growth | Result |
+|---|---:|---:|---:|---:|
+| ARM32, one function | 12,596 B | 12,596 B | 0 B | identical |
+| AArch64, one sibling-VM function | 641,280 B | 706,816 B | 65,536 B | identical |
+| RV64, one sibling-VM function | 8,736 B | 16,593 B | 7,857 B | identical |
+| RV64, three functions (`protect-many`) | 8,736 B | 25,111 B | 16,375 B | identical |
+| AArch64, one function in a 129 MiB PIE | 135,275,392 B | 135,340,928 B | 65,536 B | identical |
+
+The last case exercises the range-safe far-page detour beyond AArch64's direct-branch
+range. See the [methodology and interpretation](docs/readme-benchmarks.md) and the
+[machine-readable report](docs/examples/quality-benchmarks.json).
+
+myVMP is a research project. Use it on selected, well-tested functions and evaluate the
+security/performance trade-off for your threat model.
 
 ## Build
 
@@ -98,32 +134,44 @@ uint64_t protected_calculation(uint64_t x) {
 }
 ```
 
-Build an AArch64 or RV64 ELF:
+Build the ELF for your target:
 
 ```sh
+arm-linux-gnueabihf-gcc -O2 -g -fno-inline -fno-stack-protector app.c -o app.arm32
 aarch64-linux-gnu-gcc -O2 -g -fno-inline -fno-stack-protector app.c -o app.arm64
 riscv64-linux-gnu-gcc  -O2 -g -fno-inline -fno-stack-protector app.c -o app.rv64
 ```
 
-Inspect, plan and protect one symbol. A non-zero seed makes the transformation
-reproducible:
+Inspect, plan and protect one symbol. The same CLI works for every target; a non-zero seed
+makes the transformation reproducible:
 
 ```sh
+# ARM32/A32
+./build/myvmp inspect-elf app.arm32 protected_calculation
+./build/myvmp protect app.arm32 protected_calculation app.protected.arm32 1001
+qemu-arm -L /usr/arm-linux-gnueabihf ./app.protected.arm32
+
+# AArch64
 ./build/myvmp inspect-elf app.arm64 protected_calculation
 ./build/myvmp protect-dry-run app.arm64 protected_calculation 1001
 ./build/myvmp protect app.arm64 protected_calculation app.protected.arm64 1001
+qemu-aarch64 -L /usr/aarch64-linux-gnu ./app.protected.arm64
+
+# RV64
+./build/myvmp inspect-elf app.rv64 protected_calculation
+./build/myvmp protect-dry-run app.rv64 protected_calculation 1001
+./build/myvmp protect app.rv64 protected_calculation app.protected.rv64 1001
+qemu-riscv64 -L /usr/riscv64-linux-gnu ./app.protected.rv64
 ```
 
-The output has a companion `app.protected.arm64.myvmp.json` manifest. Compare complete
-program behavior before publishing:
+Each output has a companion `.myvmp.json` manifest. Compare complete program behavior
+before publishing:
 
 ```sh
 qemu-aarch64 -L /usr/aarch64-linux-gnu ./app.arm64 > before.txt
 qemu-aarch64 -L /usr/aarch64-linux-gnu ./app.protected.arm64 > after.txt
 cmp before.txt after.txt
 ```
-
-For RV64, use `qemu-riscv64 -L /usr/riscv64-linux-gnu`.
 
 ## Enable sibling multi-VM
 
@@ -185,16 +233,31 @@ make riscv64-multi-vm-quality-test
 - [Obfuscation and multi-VM design](docs/obfuscation.md)
 - [Complete CLI usage](docs/usage.md)
 - [Analysis and reports](docs/analysis-and-reports.md)
+- [Published cross-architecture benchmark](docs/readme-benchmarks.md)
 - [Supported platforms and environment setup](docs/build-and-platforms.md)
 - [Security model and limitations](docs/security-model.md)
 - [Testing and release validation](docs/testing.md)
 - [Research notes and references](docs/research.md)
 - [Roadmap](docs/roadmap.md)
-- [Contributing](CONTRIBUTING.md), [security policy](SECURITY.md), and
-  [release/signing guide](RELEASING.md)
+- [Contributing](CONTRIBUTING.md) and [security policy](SECURITY.md)
 
 ## License
 
 myVMP is licensed under the [GNU General Public License v3.0 only](LICENSE). Contributions
 use the same license and Developer Certificate of Origin sign-off described in
 [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Citation
+
+If myVMP is useful in your research or engineering work, please cite the project:
+
+```bibtex
+@software{mu_2026_myvmp,
+  author  = {Mu, Yuchen},
+  title   = {myVMP: Dynamic Multi-Architecture ELF Virtualization},
+  year    = {2026},
+  version = {0.1.0},
+  url     = {https://github.com/TephrocactusMYC/myVMP},
+  license = {GPL-3.0-only}
+}
+```

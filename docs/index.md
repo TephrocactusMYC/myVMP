@@ -13,6 +13,8 @@ security model before integrating myVMP into a release pipeline.
   supported targets and release packaging.
 - [Analysis and reports](analysis-and-reports.md) — dry runs, manifests, quality metrics,
   automated report bundles and interpretation.
+- [Published benchmark snapshot](readme-benchmarks.md) — real cross-architecture quality,
+  size and QEMU behavior results used by the README.
 - [Testing](testing.md) — unit, QEMU, large-ELF, diversity and release gates.
 
 ## Design documentation
@@ -33,7 +35,6 @@ security model before integrating myVMP into a release pipeline.
 - [Changelog](../CHANGELOG.md)
 - [Contributing](../CONTRIBUTING.md)
 - [Security policy](../SECURITY.md)
-- [Release and signing guide](../RELEASING.md)
 - [GPL-3.0-only license](../LICENSE)
 
 ## Source map

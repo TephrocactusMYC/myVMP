@@ -7,10 +7,16 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Planned / 计划
+### Changed / 变更
 
-- Public release automation and compatibility CI across supported host workflows.
-- 公开发布自动化以及支持宿主工作流的兼容性 CI。
+- Replaced pre-release automation with strict public-repository quality gates: GCC/Clang
+  warning-free builds, source hygiene, ShellCheck, documentation, runtime reproducibility,
+  and protected-ELF QEMU tests for all supported architectures.
+- 将发布前自动化替换为严格的公开仓库质量门禁：GCC/Clang 零 warning 构建、源码规范、
+  ShellCheck、文档、runtime 可复现检查及全部支持架构的保护后 ELF QEMU 测试。
+- Removed accidentally tracked build/sanitizer outputs and obsolete internal release
+  preparation documents; expanded ignore rules for generated artifacts.
+- 删除误跟踪的 build/sanitizer 产物和过时的内部发布准备文档，并完善生成物忽略规则。
 
 ## [0.1.0] - 2026-08-22
 

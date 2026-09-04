@@ -20,14 +20,18 @@ licensed under GPL-3.0-only, the repository license.
 make -j$(nproc)
 make test
 make docs-check
+make style-check
 ```
 
 Run the relevant target behavior, runtime-blob and quality gates described in
 `docs/testing.md`. New logical operations require decoder/lifter tests, host semantics,
 native runtime handlers, malformed-input behavior and QEMU original/protected comparison.
 
-Use C++20, keep public interfaces small, prefer shared format/validation components, and
-preserve unrelated working-tree changes. Format patches so `git diff --check` passes.
+Use C++20 and four-space indentation with no tabs or trailing whitespace. Public C++
+headers start with `#pragma once`; text files use UTF-8/LF and end with a newline. Keep
+interfaces small, prefer shared format/validation components, and preserve unrelated
+working-tree changes. CI compiles with GCC and Clang under `-Werror` plus strict format,
+shadow, preprocessor and cast diagnostics.
 
 ## Pull requests
 

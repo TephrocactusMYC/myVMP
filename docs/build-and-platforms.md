@@ -178,5 +178,4 @@ make package STATIC=1
 ```
 
 Version comes from `VERSION`; `myvmp --version`, archive name and archive root must agree.
-Follow [the release/signing guide](../RELEASING.md) for signed tags, checksum manifests and
-detached signatures. Version 0.1.0 remains a technical preview.
+Release publication and signing are maintained through the repository hosting platform.

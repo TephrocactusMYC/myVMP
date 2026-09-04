@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 input="$root/build/fixtures/generated/gen_condition_ops.aarch64"
 output=$(mktemp /tmp/myvmp-aarch64-patched.XXXXXX)
 trap 'rm -f "$output"' EXIT

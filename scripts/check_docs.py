@@ -11,7 +11,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
-ROOT_PAIRS = ["README", "CONTRIBUTING", "SECURITY", "RELEASING"]
+ROOT_PAIRS = ["README", "CONTRIBUTING", "SECURITY"]
 
 
 def local_target(source: pathlib.Path, raw: str) -> pathlib.Path | None:

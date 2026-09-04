@@ -1,4 +1,4 @@
-name: CI
+name: Quality Gate
 
 on:
   push:
@@ -7,27 +7,126 @@ on:
 permissions:
   contents: read
 
-jobs:
-  host-build:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build and test
-        run: make -j"$(nproc)" && make test version-check docs-check
-      - name: Check patch formatting
-        run: git diff --check
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
-  runtime-blobs:
+env:
+  STRICT_CXXFLAGS: >-
+    -std=c++20 -O2 -g -Wall -Wextra -Wpedantic -Werror
+    -Wformat=2 -Wundef -Wshadow -Wcast-align -Wnon-virtual-dtor
+
+jobs:
+  repository-hygiene:
+    name: Repository and source hygiene
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Install cross assemblers
+        with:
+          persist-credentials: false
+      - name: Reject tracked generated or ignored files
+        shell: bash
+        run: |
+          set -euo pipefail
+          tracked_ignored="$(git ls-files -ci --exclude-standard)"
+          if [[ -n "$tracked_ignored" ]]; then
+            printf '%s\n' 'Tracked files match .gitignore:' "$tracked_ignored" >&2
+            exit 1
+          fi
+      - name: Check source style
+        run: python3 scripts/check_style.py
+      - name: Check documentation
+        run: python3 scripts/check_docs.py
+      - name: Check Python syntax
+        run: python3 -m compileall -q scripts
+      - name: Check shell scripts
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends shellcheck
+          shellcheck scripts/*.sh
+      - name: Check whitespace errors
+        run: git diff --check HEAD
+
+  host-build:
+    name: ${{ matrix.name }} strict build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: GCC
+            id: gcc
+            cxx: g++
+          - name: Clang
+            id: clang
+            cxx: clang++
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential clang python3
+      - name: Compile with warnings as errors
+        run: >-
+          make -j"$(nproc)"
+          BUILD_DIR="build-ci-${{ matrix.id }}"
+          CXX="${{ matrix.cxx }}"
+          CXXFLAGS="$STRICT_CXXFLAGS"
+          all
+      - name: Run host tests and metadata checks
+        run: >-
+          make
+          BUILD_DIR="build-ci-${{ matrix.id }}"
+          CXX="${{ matrix.cxx }}"
+          CXXFLAGS="$STRICT_CXXFLAGS"
+          test version-check
+
+  generated-runtimes:
+    name: Generated runtime reproducibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install target assemblers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
             clang \
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
             gcc-riscv64-linux-gnu binutils-riscv64-linux-gnu \
             gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
-      - name: Verify generated runtimes
+      - name: Verify checked-in runtime blobs
         run: make check-aarch64-runtime check-riscv64-runtime check-arm32-runtime
+      - name: Require a clean generated tree
+        run: git diff --exit-code
+
+  target-smoke:
+    name: Cross-architecture QEMU smoke tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install cross toolchains and QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang python3 qemu-user \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            gcc-riscv64-linux-gnu binutils-riscv64-linux-gnu \
+            gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
+      - name: Build host protector
+        run: make -j"$(nproc)" CXXFLAGS="$STRICT_CXXFLAGS" all
+      - name: Run ARM32 protected ELF tests
+        run: make CXXFLAGS="$STRICT_CXXFLAGS" arm32-elf-parser-test arm32-vm-protect-test
+      - name: Run AArch64 protected ELF tests
+        run: make CXXFLAGS="$STRICT_CXXFLAGS" arm64-vm-protect-test
+      - name: Run RV64 protected ELF tests
+        run: make CXXFLAGS="$STRICT_CXXFLAGS" riscv64-vm-protect-test

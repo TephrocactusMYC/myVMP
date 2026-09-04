@@ -1,2 +1,56 @@
-build/
+# Build trees and generated binaries
+/build/
+/build-*/
+/cmake-build-*/
+/out/
+/dist/
+/CMakeFiles/
+/CMakeCache.txt
+/compile_commands.json
+*.o
+*.obj
+*.d
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
 
+# myVMP outputs and transient analysis data
+*.protected
+*.protected.*
+*.myvmp.json
+*.myvmp.batch.json
+*.tmp
+*.log
+/analysis/
+/reports/
+/coverage/
+*.profraw
+*.profdata
+*.gcda
+*.gcno
+*.lcov
+core
+core.*
+
+# Python/tool caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.venv/
+venv/
+
+# Editor and operating-system state
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

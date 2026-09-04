@@ -1,6 +1,7 @@
-# myVMP — 动态 ELF 虚拟化保护
+# myVMP — 动态、多架构 ELF 虚拟化保护
 
-> **无需改变编译器或源码工程，把选定的原生函数转换为每次构建均不同的加密虚拟机。**
+> **只保护真正重要的代码：把选定的 ARM32、AArch64 和 RV64 函数直接转换为每次构建
+> 都不同的加密虚拟机。**
 
 ![Language](https://img.shields.io/badge/C%2B%2B-20-00599C)
 ![License](https://img.shields.io/badge/license-GPL--3.0--only-blue)
@@ -9,40 +10,72 @@
 
 [English README](README.md) · [英文文档](docs/index.md) · [中文文档](docs/zh-CN/index.md) · 版本 0.1.0
 
-myVMP 是一个可落地的函数级 ELF 虚拟化保护工具，支持 **AArch64、ARM32/A32 和 RV64**。
-它把已链接 ELF 中选定的函数提升为架构无关 IR，编码为随
-seed 变化的 VM 字节码，嵌入原生解释器和加密载荷，再向新 ELF 安装安全入口跳板。
-输入文件永远不会被原地修改。
+myVMP 是一个可落地的函数级保护工具，支持 **ARM32/A32、AArch64 和 RV64 ELF**。
+你可以指定授权校验、核心算法、协议逻辑或密钥派生等高价值符号；工具会用嵌入式 VM
+runtime 和加密字节码替换其原生控制流。它不需要 LLVM fork、编译器插件或改造源码工程，
+也永远不会原地修改输入 ELF。
 
 ## 项目优势
 
 - **二进制级工作流：**直接保护已链接 ELF 的具名函数，无需编译器插件。
-- **每次构建动态变化：**seed 会改变 opcode 映射、operand codec、基本块布局、加密、
-  立即数降级、dispatcher 常量、handler 变体和原生函数体填充。
+- **每次构建得到不同 VM：**seed 同时改变 opcode 映射、operand codec、基本块归属与布局、
+  加密、立即数降级、dispatcher 常量、handler 变体和原生函数体陷阱填充，而不只是换一个
+  字节码 XOR 密钥。
 - **真实 sibling multi-VM：**基本块由两个独立 profile 动态持有，并通过经过验证的
   bridge 跨 VM 执行，而不是静态放置第二个 dispatcher。
-- **三种原生后端：**AArch64、ARM32/A32 和 RV64 共享 IR、字节码、profile、manifest 和质量设施，
-  同时保留独立的 lifter、runtime 与跳板实现。
+- **三条完整保护路径、一套统一设计：**三种架构共享语义 IR、字节码/profile 接口、manifest
+  与质量门禁，同时保留经审计的 ISA 专属 lifter、runtime 和距离安全跳板。
+- **为选择性保护设计：**可保护一个函数，也可用 `protect-many` 指定一组函数，把启动与体积
+  成本集中在安全关键代码上。
 - **失败关闭：**不支持的指令、危险重定位、畸形 ELF 和不安全 patch 计划会在发布前拒绝。
 - **可度量：**提供可复现 manifest、字节暴露指标、多 seed 差异门禁、QEMU 行为对比和
   大型 ELF 压力测试。
 
-myVMP 是研究项目，不宣称保护不可逆。建议只保护经过充分测试的关键函数，并结合自身
-威胁模型评估安全性与性能成本。
+### 保护具体改变了什么
 
-### ARM32 成功运行示例
+下面是仓库 `candidate_branch_ops` fixture 的真实 AArch64 反汇编。76 字节原生循环被替换
+为入口跳转，剩余函数体使用随 seed 变化的陷阱销毁；函数语义从附加载荷中的加密 VM 块执行。
 
 ```text
-protected=true
-reason=ARM32 function virtualized with two sibling VM profiles
-native_size=68
-bytecode_blocks=5
-vm_mode=sibling
-qemu 原始/保护后行为：一致
+保护前                                      保护后
+400780: mov  x5, x0                        400780: b    0x47d720
+400784: mov  x1, #0                        400784: brk  #0x175a
+40078c: lsl  x7, x5, #1                    400788: brk  #0xfef1
+400790: add  x4, x5, x1                    40078c: brk  #0xeb9c
+   ... 条件循环 ...                            ... 随 seed 变化的陷阱 ...
+4007c4: b.ne 0x400790                      4007c8: brk  #0x3381
+4007c8: ret
 ```
 
-仓库会在 QEMU 中执行真实保护后 ELF，检查多 seed 差异，并在发布输出前拒绝不支持的
-输入。因此它可以进入真实构建流水线，保护少量高价值函数，而不只是字节码演示项目。
+### 实测混淆质量
+
+以下 fixture 均以 sibling multi-VM 模式实际保护并在 QEMU 中运行。质量对比的是**原生函数
+字节**与**实际加密 VM 基本块字节**，而不是拿大部分内容本应不变的整个 ELF 对比。
+
+| 目标 | 原生 → 加密 VM 字节 | 保护前 → 后熵 | 同位置相同字节 | 32/64 位原生机器字暴露 | QEMU |
+|---|---:|---:|---:|---:|---:|
+| ARM32/A32 | 68 → 264 | 4.128 → 7.242 | 0 | 0 / 0 | 行为一致 |
+| AArch64 | 76 → 197 | 4.682 → 7.081 | 0 | 0 / 0 | 行为一致 |
+| RV64 | 32 → 141 | 4.601 → 6.627 | 0 | 0 / 0 | 行为一致 |
+
+三个样本的原生字面量暴露同样为零，且全部通过质量阈值。这些指标是回归证据，并非“保护
+不可逆”的承诺。
+
+### 选择性保护与真实 ELF 尺度
+
+| 场景 | 原 ELF | 保护后 ELF | 增长 | 结果 |
+|---|---:|---:|---:|---:|
+| ARM32，单函数 | 12,596 B | 12,596 B | 0 B | 行为一致 |
+| AArch64，单函数 sibling VM | 641,280 B | 706,816 B | 65,536 B | 行为一致 |
+| RV64，单函数 sibling VM | 8,736 B | 16,593 B | 7,857 B | 行为一致 |
+| RV64，三个函数 `protect-many` | 8,736 B | 25,111 B | 16,375 B | 行为一致 |
+| AArch64，129 MiB PIE 中单函数 | 135,275,392 B | 135,340,928 B | 65,536 B | 行为一致 |
+
+最后一项实际覆盖超出 AArch64 直接分支范围的距离安全远跳页。详见
+[测试方法与解读](docs/zh-CN/readme-benchmarks.md)及
+[机器可读报告](docs/examples/quality-benchmarks.json)。
+
+myVMP 是研究项目。建议保护经过充分测试的关键函数，并结合自身威胁模型评估安全与性能成本。
 
 ## 构建
 
@@ -82,10 +115,26 @@ uint64_t protected_calculation(uint64_t x) {
 ```
 
 ```sh
+arm-linux-gnueabihf-gcc -O2 -g -fno-inline -fno-stack-protector app.c -o app.arm32
 aarch64-linux-gnu-gcc -O2 -g -fno-inline -fno-stack-protector app.c -o app.arm64
+riscv64-linux-gnu-gcc  -O2 -g -fno-inline -fno-stack-protector app.c -o app.rv64
+
+# ARM32/A32
+./build/myvmp inspect-elf app.arm32 protected_calculation
+./build/myvmp protect app.arm32 protected_calculation app.protected.arm32 1001
+qemu-arm -L /usr/arm-linux-gnueabihf ./app.protected.arm32
+
+# AArch64
 ./build/myvmp inspect-elf app.arm64 protected_calculation
 ./build/myvmp protect-dry-run app.arm64 protected_calculation 1001
 ./build/myvmp protect app.arm64 protected_calculation app.protected.arm64 1001
+qemu-aarch64 -L /usr/aarch64-linux-gnu ./app.protected.arm64
+
+# RV64
+./build/myvmp inspect-elf app.rv64 protected_calculation
+./build/myvmp protect-dry-run app.rv64 protected_calculation 1001
+./build/myvmp protect app.rv64 protected_calculation app.protected.rv64 1001
+qemu-riscv64 -L /usr/riscv64-linux-gnu ./app.protected.rv64
 ```
 
 输出旁会生成 `.myvmp.json` manifest。发布前必须比较完整程序行为：
@@ -95,8 +144,6 @@ qemu-aarch64 -L /usr/aarch64-linux-gnu ./app.arm64 > before.txt
 qemu-aarch64 -L /usr/aarch64-linux-gnu ./app.protected.arm64 > after.txt
 cmp before.txt after.txt
 ```
-
-RV64 使用 `riscv64-linux-gnu-gcc` 和 `qemu-riscv64 -L /usr/riscv64-linux-gnu`。
 
 ## sibling multi-VM
 
@@ -140,15 +187,30 @@ python3 scripts/generate_analysis_report.py \
 - [混淆和 multi-VM](docs/zh-CN/obfuscation.md)
 - [完整使用指南](docs/zh-CN/usage.md)
 - [分析报告](docs/zh-CN/analysis-and-reports.md)
+- [公开跨架构实测](docs/zh-CN/readme-benchmarks.md)
 - [平台与环境](docs/zh-CN/build-and-platforms.md)
 - [安全模型](docs/zh-CN/security-model.md)
 - [测试](docs/zh-CN/testing.md)
 - [调研与参考文献](docs/zh-CN/research.md)
 - [后续路线](docs/zh-CN/roadmap.md)
-- [贡献指南](CONTRIBUTING.zh-CN.md)、[安全政策](SECURITY.zh-CN.md)和
-  [发布签名指南](RELEASING.zh-CN.md)
+- [贡献指南](CONTRIBUTING.zh-CN.md)和[安全政策](SECURITY.zh-CN.md)
 
 ## 许可证
 
 myVMP 使用 [GNU GPL v3.0 only](LICENSE)。贡献内容采用相同许可证，并按
 [贡献指南](CONTRIBUTING.zh-CN.md)使用 DCO sign-off。
+
+## 引用
+
+如果 myVMP 对你的研究或工程工作有所帮助，请使用以下 BibTeX 信息引用本项目：
+
+```bibtex
+@software{mu_2026_myvmp,
+  author  = {Mu, Yuchen},
+  title   = {myVMP: Dynamic Multi-Architecture ELF Virtualization},
+  year    = {2026},
+  version = {0.1.0},
+  url     = {https://github.com/TephrocactusMYC/CactiVM},
+  license = {GPL-3.0-only}
+}
+```
