@@ -119,6 +119,15 @@ enum class Mnemonic {
     FpMinMax,
     FpConditionalCompare,
     FpSelect,
+    VectorBinary,
+    VectorCompare,
+    VectorSelect,
+    VectorShiftImm,
+    VectorPermute,
+    VectorLoad,
+    VectorStore,
+    VectorFpBinary,
+    VectorMoveImmZero,
     Ret,
 };
 

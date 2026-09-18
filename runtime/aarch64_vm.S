@@ -480,6 +480,24 @@ myvmp_dispatch:
     b.eq myvmp_load_exclusive_pair
     cmp w10, #0x0f
     b.eq myvmp_store_exclusive_pair
+    cmp w10, #0x10
+    b.eq myvmp_vector_binary
+    cmp w10, #0x12
+    b.eq myvmp_vector_compare
+    cmp w10, #0x13
+    b.eq myvmp_vector_select
+    cmp w10, #0x14
+    b.eq myvmp_vector_shift_imm
+    cmp w10, #0x15
+    b.eq myvmp_vector_permute
+    cmp w10, #0x16
+    b.eq myvmp_vector_load
+    cmp w10, #0x17
+    b.eq myvmp_vector_store
+    cmp w10, #0x18
+    b.eq myvmp_vector_fp_binary
+    cmp w10, #0x19
+    b.eq myvmp_vector_move_imm_zero
     cmp w10, #0xd3
     b.eq myvmp_barrier
     cmp w10, #0x44
@@ -2354,6 +2372,280 @@ myvmp_extend_x17:
 
 // Input: w11 condition id. Output: w0 boolean. NZCV is restored from VM state only
 // after the selector comparisons, so dispatch itself cannot corrupt the result.
+// Fixed-width Advanced SIMD handlers.  The VM keeps all 32 architectural vector
+// registers in the 512-byte state area at sp+272.  Handlers use q0-q4 only as
+// transient execution registers; the state area remains authoritative, which also
+// makes sibling VM profiles share exactly the same vector ABI.
+myvmp_vector_binary:
+    ldrb w11, [x9], #1
+    ldrb w12, [x9], #1
+    ldrb w13, [x9], #1
+    ldrb w14, [x9], #1
+    ldrb w15, [x9], #1
+    add x16, sp, #272
+    add x17, x16, x12, lsl #4
+    ldr q0, [x17]
+    add x17, x16, x13, lsl #4
+    ldr q1, [x17]
+    cmp w14, #2
+    b.eq 500f
+    cmp w14, #3
+    b.eq 501f
+    cmp w14, #4
+    b.eq 502f
+    cmp w15, #1
+    b.eq 503f
+    cmp w15, #2
+    b.eq 504f
+    cmp w15, #4
+    b.eq 505f
+    cmp w15, #8
+    b.ne myvmp_bad_opcode
+    cbnz w14, 506f
+    add v0.2d, v0.2d, v1.2d
+    b 509f
+506: sub v0.2d, v0.2d, v1.2d
+    b 509f
+503: cbnz w14, 507f
+    add v0.16b, v0.16b, v1.16b
+    b 509f
+507: sub v0.16b, v0.16b, v1.16b
+    b 509f
+504: cbnz w14, 5071f
+    add v0.8h, v0.8h, v1.8h
+    b 509f
+5071: sub v0.8h, v0.8h, v1.8h
+    b 509f
+505: cbnz w14, 508f
+    add v0.4s, v0.4s, v1.4s
+    b 509f
+508: sub v0.4s, v0.4s, v1.4s
+    b 509f
+500: and v0.16b, v0.16b, v1.16b
+    b 509f
+501: orr v0.16b, v0.16b, v1.16b
+    b 509f
+502: eor v0.16b, v0.16b, v1.16b
+509: add x16, x16, x11, lsl #4
+    str q0, [x16]
+    b myvmp_dispatch
+
+myvmp_vector_compare:
+    ldrb w11, [x9], #1
+    ldrb w12, [x9], #1
+    ldrb w13, [x9], #1
+    ldrb w14, [x9], #1
+    ldrb w15, [x9], #1
+    add x16, sp, #272
+    add x17, x16, x12, lsl #4
+    ldr q0, [x17]
+    add x17, x16, x13, lsl #4
+    ldr q1, [x17]
+    cmp w14, #1
+    b.hi myvmp_bad_opcode
+    cmp w15, #1
+    b.eq 510f
+    cmp w15, #2
+    b.eq 511f
+    cmp w15, #4
+    b.eq 512f
+    cmp w15, #8
+    b.ne myvmp_bad_opcode
+    cbnz w14, 513f
+    cmeq v0.2d, v0.2d, v1.2d
+    b 519f
+513: cmgt v0.2d, v0.2d, v1.2d
+    b 519f
+510: cbnz w14, 514f
+    cmeq v0.16b, v0.16b, v1.16b
+    b 519f
+514: cmgt v0.16b, v0.16b, v1.16b
+    b 519f
+511: cbnz w14, 515f
+    cmeq v0.8h, v0.8h, v1.8h
+    b 519f
+515: cmgt v0.8h, v0.8h, v1.8h
+    b 519f
+512: cbnz w14, 516f
+    cmeq v0.4s, v0.4s, v1.4s
+    b 519f
+516: cmgt v0.4s, v0.4s, v1.4s
+519: add x16, x16, x11, lsl #4
+    str q0, [x16]
+    b myvmp_dispatch
+
+myvmp_vector_select:
+    ldrb w11, [x9], #1
+    ldrb w12, [x9], #1
+    ldrb w13, [x9], #1
+    ldrb w14, [x9], #1
+    add x16, sp, #272
+    add x17, x16, x14, lsl #4
+    ldr q0, [x17]
+    add x17, x16, x12, lsl #4
+    ldr q1, [x17]
+    add x17, x16, x13, lsl #4
+    ldr q2, [x17]
+    bsl v0.16b, v1.16b, v2.16b
+    add x16, x16, x11, lsl #4
+    str q0, [x16]
+    b myvmp_dispatch
+
+myvmp_vector_shift_imm:
+    ldrb w11, [x9], #1
+    ldrb w12, [x9], #1
+    ldrb w13, [x9], #1
+    ldrb w14, [x9], #1
+    ldrb w15, [x9], #1
+    cmp w13, #1
+    b.hi myvmp_bad_opcode
+    lsl w17, w15, #3
+    cmp w14, w17
+    b.lo 518f
+    b.hi myvmp_bad_opcode
+    cbz w13, myvmp_bad_opcode
+518:
+    add x16, sp, #272
+    add x17, x16, x12, lsl #4
+    ldr q0, [x17]
+    cbz w13, 520f
+    neg w14, w14
+520: cmp w15, #1
+    b.eq 521f
+    cmp w15, #2
+    b.eq 522f
+    cmp w15, #4
+    b.eq 523f
+    cmp w15, #8
+    b.ne myvmp_bad_opcode
+    sxtw x14, w14
+    dup v1.2d, x14
+    ushl v0.2d, v0.2d, v1.2d
+    b 529f
+521: dup v1.16b, w14
+    ushl v0.16b, v0.16b, v1.16b
+    b 529f
+522: dup v1.8h, w14
+    ushl v0.8h, v0.8h, v1.8h
+    b 529f
+523: dup v1.4s, w14
+    ushl v0.4s, v0.4s, v1.4s
+529: add x16, x16, x11, lsl #4
+    str q0, [x16]
+    b myvmp_dispatch
+
+myvmp_vector_permute:
+    ldrb w11, [x9], #1
+    ldrb w12, [x9], #1
+    ldrb w13, [x9], #1
+    ldrb w14, [x9], #1
+    // The high three control bits select the permutation and the low five carry
+    // EXT's byte offset.
+    tst w14, #0xe0
+    b.ne myvmp_bad_opcode
+    and w14, w14, #0x1f
+    cmp w14, #16
+    b.hs myvmp_bad_opcode
+    add x16, sp, #272
+    add x17, x16, x12, lsl #4
+    ldr q1, [x17]
+    add x17, x16, x13, lsl #4
+    ldr q2, [x17]
+    adr x17, myvmp_vector_byte_indices
+    ldr q3, [x17]
+    dup v4.16b, w14
+    add v3.16b, v3.16b, v4.16b
+    tbl v0.16b, {v1.16b, v2.16b}, v3.16b
+    add x16, x16, x11, lsl #4
+    str q0, [x16]
+    b myvmp_dispatch
+
+myvmp_vector_load:
+    ldrb w11, [x9], #1
+    ldrb w12, [x9], #1
+    ldr x13, [x9], #8
+    ldrb w14, [x9], #1
+    ldr x15, [sp, x12, lsl #3]
+    add x15, x15, x13
+    eor v0.16b, v0.16b, v0.16b
+    cmp w14, #16
+    b.ne myvmp_bad_opcode
+    ldr q0, [x15]
+539: add x16, sp, #272
+    add x16, x16, x11, lsl #4
+    str q0, [x16]
+    b myvmp_dispatch
+
+myvmp_vector_store:
+    ldrb w11, [x9], #1
+    ldrb w12, [x9], #1
+    ldr x13, [x9], #8
+    ldrb w14, [x9], #1
+    add x16, sp, #272
+    add x16, x16, x11, lsl #4
+    ldr q0, [x16]
+    ldr x15, [sp, x12, lsl #3]
+    add x15, x15, x13
+    cmp w14, #16
+    b.ne myvmp_bad_opcode
+    str q0, [x15]
+    b myvmp_dispatch
+
+myvmp_vector_fp_binary:
+    ldrb w11, [x9], #1
+    ldrb w12, [x9], #1
+    ldrb w13, [x9], #1
+    ldrb w14, [x9], #1
+    ldrb w15, [x9], #1
+    add x16, sp, #272
+    add x17, x16, x12, lsl #4
+    ldr q0, [x17]
+    add x17, x16, x13, lsl #4
+    ldr q1, [x17]
+    cmp w15, #4
+    b.eq 550f
+    cmp w15, #8
+    b.ne myvmp_bad_opcode
+    cbz w14, 551f
+    cmp w14, #1
+    b.eq 552f
+    cmp w14, #2
+    b.eq 553f
+    cmp w14, #3
+    b.ne myvmp_bad_opcode
+    fdiv v0.2d, v0.2d, v1.2d
+    b 559f
+551: fadd v0.2d, v0.2d, v1.2d
+    b 559f
+552: fsub v0.2d, v0.2d, v1.2d
+    b 559f
+553: fmul v0.2d, v0.2d, v1.2d
+    b 559f
+550: cbz w14, 554f
+    cmp w14, #1
+    b.eq 555f
+    cmp w14, #2
+    b.eq 556f
+    cmp w14, #3
+    b.ne myvmp_bad_opcode
+    fdiv v0.4s, v0.4s, v1.4s
+    b 559f
+554: fadd v0.4s, v0.4s, v1.4s
+    b 559f
+555: fsub v0.4s, v0.4s, v1.4s
+    b 559f
+556: fmul v0.4s, v0.4s, v1.4s
+559: add x16, x16, x11, lsl #4
+    str q0, [x16]
+    b myvmp_dispatch
+
+myvmp_vector_move_imm_zero:
+    ldrb w11, [x9], #1
+    add x16, sp, #272
+    add x16, x16, x11, lsl #4
+    stp xzr, xzr, [x16]
+    b myvmp_dispatch
+
 myvmp_condition_true:
     cmp w11, #0
     b.eq 51f
@@ -2504,6 +2796,11 @@ myvmp_bad_opcode:
     add sp, sp, #32, lsl #12
     add sp, sp, #1, lsl #12
     ret
+
+.p2align 2
+myvmp_vector_byte_indices:
+    .byte 0, 1, 2, 3, 4, 5, 6, 7
+    .byte 8, 9, 10, 11, 12, 13, 14, 15
 
 .p2align 2
 myvmp_bytecode:

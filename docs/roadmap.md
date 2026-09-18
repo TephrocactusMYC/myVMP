@@ -17,7 +17,9 @@ tests are implemented. The next priorities are intentionally concise.
 
 ## Correctness and platform breadth
 
-- expand optional AArch64/RV64 SIMD/vector support behind explicit semantic and ABI tests;
+- broaden the implemented AArch64 fixed-width Advanced SIMD subset only when new forms
+  have decoder, typed-lane, native runtime and QEMU ABI coverage; keep SVE/SME and RVV
+  separate future designs;
 - extend remaining uncommon atomics, relocations and compiler-specific scalar forms;
 - strengthen shared-object, TLS, exception/unwind and very-large-application qualification;
 - broaden ARM32 compiler-corpus qualification while keeping Thumb/VFP/NEON explicit opt-in work.

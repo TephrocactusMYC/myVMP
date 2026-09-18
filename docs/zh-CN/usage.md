@@ -86,6 +86,13 @@ cmp original.out protected.out
 `--max-size-ratio` 门槛；失败时退出码为 1。函数级评估应比较提取出的函数/payload 区间，
 而不是被大量未保护代码主导的整个 ELF。
 
+## 错误契约
+
+失败时 stderr 第一行是稳定的 `error_code=...`，随后是面向人的诊断。当前类别包括
+`INVALID_ARGUMENT`、`IO_ERROR`、`SYMBOL_NOT_FOUND`、`UNSUPPORTED_ARCHITECTURE`、
+`UNSUPPORTED_INSTRUCTION`、`UNSAFE_PATCH`、`OUTPUT_CONFLICT` 和 `PROTECTION_ERROR`。
+自动化脚本应依赖错误代码，而不要匹配可变的自然语言诊断。
+
 ## ARM32/A32 后端
 
 ```sh

@@ -24,6 +24,10 @@ make integration-test
 make generated-fixture-test
 ```
 
+Pull request 的 GitHub Action 有意只运行快速的仓库卫生检查、严格 host 构建、host 单元测试
+和版本检查。交叉编译、QEMU、seed sweep、大 ELF 及 runtime 生成门禁资源消耗较高，不再对
+每次 push 强制执行；发布或专用硬件测试 job 中再运行下面的架构专项命令。
+
 ## AArch64
 
 ```sh
@@ -33,6 +37,7 @@ make arm64-liftability-report
 make arm64-protect-dry-run-test
 make arm64-elf-patch-test
 make arm64-vm-protect-test
+make arm64-simd-test
 make arm64-far-elf-test
 make bytecode-seed-sweep
 make multi-vm-quality-test
@@ -42,6 +47,11 @@ make check-aarch64-runtime
 行为 suite 覆盖 scalar integer/flags/control flow、各种内存宽度、直接/间接/tail/internal
 call、GOT/global、scalar FP32/FP64 与 conditional FP、exclusive/acquire/release atomic 和
 已支持的 Armv8.1 compare/exchange。sibling 测试覆盖 branch、call 与 memory CFG。
+
+`arm64-simd-test` 在 single 与 sibling 模式保护真实 Advanced SIMD 函数并对比 QEMU 输出，
+覆盖整数 lane、bitwise/compare/select、shift、`EXT`、Q memory、FP32/FP64 vector 算术、
+清零和 q0-q7 native-call 同步；同时检查两个 sibling profile 对九类 vector opcode 使用不同
+物理值。
 
 `arm64-far-elf-test` 构建超过 129 MiB 的真实 PIE，强制 payload 超出 direct branch 范围，
 检查 `ADRP/ADD/BR` 并在 QEMU 对比行为。

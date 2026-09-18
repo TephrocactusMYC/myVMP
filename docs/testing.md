@@ -27,6 +27,11 @@ make integration-test
 make generated-fixture-test
 ```
 
+The pull-request GitHub Action intentionally runs only the fast repository-hygiene checks,
+strict host build, host unit tests and version check. Cross-compilation, QEMU, seed-sweep,
+large-ELF and generated-runtime gates are resource-intensive and are not run on every push;
+run the architecture-specific commands below in a release or dedicated hardware test job.
+
 ## AArch64 release gates
 
 ```sh
@@ -36,6 +41,7 @@ make arm64-liftability-report
 make arm64-protect-dry-run-test
 make arm64-elf-patch-test
 make arm64-vm-protect-test
+make arm64-simd-test
 make arm64-far-elf-test
 make bytecode-seed-sweep
 make multi-vm-quality-test
@@ -46,6 +52,12 @@ The VM behavior suite covers scalar integer/flags/control flow, memory widths an
 direct/indirect/tail/internal calls, GOT/global addressing, scalar FP32/FP64 and conditional
 FP, exclusive/acquire/release atomics and supported Armv8.1 compare/exchange. Sibling tests
 exercise branch, call and memory CFGs.
+
+`arm64-simd-test` protects a real Advanced SIMD function in single and sibling modes and
+compares QEMU output. It covers integer lanes, bitwise/compare/select, shifts, `EXT`, Q
+memory, FP32/FP64 vector arithmetic, zeroing and q0-q7 native-call synchronization. It
+also verifies that the two sibling profiles assign different physical values to all nine
+vector opcode families.
 
 `arm64-far-elf-test` builds a real PIE with more than 129 MiB of executable file-backed
 padding. It forces the payload beyond direct-branch range, verifies the

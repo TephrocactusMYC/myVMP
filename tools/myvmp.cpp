@@ -38,6 +38,34 @@ std::string g_log_dir;
 
 std::uint32_t parse_word(const std::string& text);
 
+std::string error_code_for(const std::string& message) {
+    if (message == "stoull" || message == "stod" || message.starts_with("invalid integer") ||
+        message.starts_with("quality thresholds") ||
+        message.starts_with("unknown quality-report") || message.find("requires") != std::string::npos) {
+        return "INVALID_ARGUMENT";
+    }
+    if (message.find("unsupported ELF machine") != std::string::npos ||
+        message.find("backend is not implemented") != std::string::npos) {
+        return "UNSUPPORTED_ARCHITECTURE";
+    }
+    if (message.find("unsupported ARM64") != std::string::npos ||
+        message.find("unsupported ARM32") != std::string::npos ||
+        message.find("unsupported RV64") != std::string::npos ||
+        message.find("unsupported RVC") != std::string::npos) {
+        return "UNSUPPORTED_INSTRUCTION";
+    }
+    if (message.find("symbol not found") != std::string::npos) return "SYMBOL_NOT_FOUND";
+    if (message.find("refuses to overwrite") != std::string::npos ||
+        message.find("paths must differ") != std::string::npos) return "OUTPUT_CONFLICT";
+    if (message.find("relocation") != std::string::npos ||
+        message.find("detour") != std::string::npos || message.find("patch") != std::string::npos) {
+        return "UNSAFE_PATCH";
+    }
+    if (message.find("failed to open") != std::string::npos ||
+        message.find("does not exist") != std::string::npos) return "IO_ERROR";
+    return "PROTECTION_ERROR";
+}
+
 std::uint64_t parse_u64(const std::string& text) {
     std::size_t consumed = 0;
     const auto value = std::stoull(text, &consumed, 0);
@@ -277,6 +305,7 @@ int quality_report(int argc, char** argv) {
     output << std::fixed << std::setprecision(6);
     if (json) {
         output << "{\n"
+               << "  \"schema\": \"myvmp-quality-v1\",\n"
                << "  \"before_size\": " << before.size() << ",\n"
                << "  \"after_size\": " << after.size() << ",\n"
                << "  \"size_ratio\": " << size_ratio << ",\n"
@@ -779,7 +808,8 @@ int main(int argc, char** argv) {
         std::cerr << "usage: myvmp [--log-dir <dir>] <inspect-elf|lift-arm32|lift-arm64|lift-rv64|lift-elf-symbol|protect-dry-run|protect|protect-many|patch-aarch64-stub|quality-report|profile-manifest> ...\n";
         return 2;
     } catch (const std::exception& ex) {
-        std::cerr << "error: " << ex.what() << '\n';
+        std::cerr << "error_code=" << error_code_for(ex.what()) << '\n'
+                  << "error: " << ex.what() << '\n';
         return 1;
     }
 }

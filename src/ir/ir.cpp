@@ -724,6 +724,90 @@ void Program::call_native_reg(RegisterId target, std::uint64_t link_address) {
                              static_cast<std::int64_t>(link_address)});
 }
 
+namespace {
+void check_vector_register(RegisterId reg) {
+    if (reg >= 32) {
+        throw std::invalid_argument("IR vector register must be v0..v31");
+    }
+}
+
+void check_vector_lane_width(std::uint8_t lane_bytes) {
+    if (lane_bytes != 1 && lane_bytes != 2 && lane_bytes != 4 && lane_bytes != 8) {
+        throw std::invalid_argument("IR vector lane width must be 1, 2, 4, or 8 bytes");
+    }
+}
+} // namespace
+
+void Program::vector_binary(RegisterId dst, RegisterId lhs, RegisterId rhs,
+                            VectorBinaryKind kind, std::uint8_t lane_bytes) {
+    check_vector_register(dst); check_vector_register(lhs); check_vector_register(rhs);
+    check_vector_lane_width(lane_bytes);
+    instructions_.push_back({Opcode::VectorBinary, dst, lhs, rhs, static_cast<std::uint64_t>(kind),
+                             ShiftKind::Lsl, 0, Condition::Eq, 0, ExtendKind::Uxtx, 0, lane_bytes});
+}
+
+void Program::vector_compare(RegisterId dst, RegisterId lhs, RegisterId rhs,
+                             VectorCompareKind kind, std::uint8_t lane_bytes) {
+    check_vector_register(dst); check_vector_register(lhs); check_vector_register(rhs);
+    check_vector_lane_width(lane_bytes);
+    instructions_.push_back({Opcode::VectorCompare, dst, lhs, rhs, static_cast<std::uint64_t>(kind),
+                             ShiftKind::Lsl, 0, Condition::Eq, 0, ExtendKind::Uxtx, 0, lane_bytes});
+}
+
+void Program::vector_select(RegisterId dst, RegisterId true_src, RegisterId false_src,
+                            RegisterId mask) {
+    check_vector_register(dst); check_vector_register(true_src); check_vector_register(false_src);
+    check_vector_register(mask);
+    instructions_.push_back({Opcode::VectorSelect, dst, true_src, false_src, mask});
+}
+
+void Program::vector_shift_imm(RegisterId dst, RegisterId src, VectorShiftKind kind,
+                               std::uint8_t amount, std::uint8_t lane_bytes) {
+    check_vector_register(dst); check_vector_register(src); check_vector_lane_width(lane_bytes);
+    const auto lane_bits = static_cast<std::uint8_t>(lane_bytes * 8);
+    if ((kind == VectorShiftKind::Left && amount >= lane_bits) ||
+        (kind == VectorShiftKind::LogicalRight && (amount == 0 || amount > lane_bits))) {
+        throw std::invalid_argument("IR vector shift is out of lane range");
+    }
+    instructions_.push_back({Opcode::VectorShiftImm, dst, src, 0, static_cast<std::uint64_t>(kind),
+                             ShiftKind::Lsl, amount, Condition::Eq, 0, ExtendKind::Uxtx, 0, lane_bytes});
+}
+
+void Program::vector_permute(RegisterId dst, RegisterId lhs, RegisterId rhs,
+                             VectorPermuteKind kind, std::uint8_t index) {
+    check_vector_register(dst); check_vector_register(lhs); check_vector_register(rhs);
+    if (index >= 16) throw std::invalid_argument("IR vector extract index is out of range");
+    instructions_.push_back({Opcode::VectorPermute, dst, lhs, rhs, static_cast<std::uint64_t>(kind),
+                             ShiftKind::Lsl, index});
+}
+
+void Program::vector_load(RegisterId dst, RegisterId base, std::uint64_t offset) {
+    check_vector_register(dst); check_register(base);
+    instructions_.push_back({Opcode::VectorLoad, dst, base, 0, offset, ShiftKind::Lsl, 0,
+                             Condition::Eq, 0, ExtendKind::Uxtx, 0, 16});
+}
+
+void Program::vector_store(RegisterId src, RegisterId base, std::uint64_t offset) {
+    check_vector_register(src); check_register(base);
+    instructions_.push_back({Opcode::VectorStore, src, base, 0, offset, ShiftKind::Lsl, 0,
+                             Condition::Eq, 0, ExtendKind::Uxtx, 0, 16});
+}
+
+void Program::vector_fp_binary(RegisterId dst, RegisterId lhs, RegisterId rhs,
+                               VectorFpBinaryKind kind, std::uint8_t lane_bytes) {
+    check_vector_register(dst); check_vector_register(lhs); check_vector_register(rhs);
+    if (lane_bytes != 4 && lane_bytes != 8) {
+        throw std::invalid_argument("IR vector FP lane width must be 4 or 8 bytes");
+    }
+    instructions_.push_back({Opcode::VectorFpBinary, dst, lhs, rhs, static_cast<std::uint64_t>(kind),
+                             ShiftKind::Lsl, 0, Condition::Eq, 0, ExtendKind::Uxtx, 0, lane_bytes});
+}
+
+void Program::vector_move_imm_zero(RegisterId dst) {
+    check_vector_register(dst);
+    instructions_.push_back({Opcode::VectorMoveImmZero, dst});
+}
+
 void Program::no_op() {
     instructions_.push_back({Opcode::NoOp});
 }
@@ -962,6 +1046,15 @@ std::string to_string(Opcode opcode) {
         return "CallNative";
     case Opcode::CallNativeReg:
         return "CallNativeReg";
+    case Opcode::VectorBinary: return "VectorBinary";
+    case Opcode::VectorCompare: return "VectorCompare";
+    case Opcode::VectorSelect: return "VectorSelect";
+    case Opcode::VectorShiftImm: return "VectorShiftImm";
+    case Opcode::VectorPermute: return "VectorPermute";
+    case Opcode::VectorLoad: return "VectorLoad";
+    case Opcode::VectorStore: return "VectorStore";
+    case Opcode::VectorFpBinary: return "VectorFpBinary";
+    case Opcode::VectorMoveImmZero: return "VectorMoveImmZero";
     case Opcode::NoOp:
         return "NoOp";
     case Opcode::ReturnReg:

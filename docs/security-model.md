@@ -40,9 +40,10 @@ VM metadata, payload/runtime limits and inconsistent sibling partitions. ARM32/A
 Thumb, VFP/NEON and privileged families; sibling multi-VM is supported. x86-64 target
 protection is not implemented.
 
-The exact AArch64/RV64 instruction boundary is defined by decoder/lifter code and release
-fixtures. Optional SIMD/vector and platform-specific families not covered by regression
-must not be assumed supported merely because the runtime preserves their register state.
+The exact instruction boundary is defined by decoder/lifter code and release fixtures.
+AArch64 includes the documented, regression-tested fixed 128-bit Advanced SIMD subset;
+other NEON forms, SVE/SVE2/SME, RV64 Vector and platform-specific families must not be
+assumed supported merely because a runtime preserves vector register state.
 
 ## Operational recommendations
 

@@ -21,6 +21,15 @@ enum class Opcode : std::uint8_t {
     FpSelect = 0x0D,
     LoadExclusivePair = 0x0E,
     StoreExclusivePair = 0x0F,
+    VectorBinary = 0x10,
+    VectorCompare = 0x12,
+    VectorSelect = 0x13,
+    VectorShiftImm = 0x14,
+    VectorPermute = 0x15,
+    VectorLoad = 0x16,
+    VectorStore = 0x17,
+    VectorFpBinary = 0x18,
+    VectorMoveImmZero = 0x19,
     LoadImm64 = 0x11,
     LoadAddress64 = 0xE3,
     AddImm64 = 0x22,
@@ -240,6 +249,15 @@ struct VmProfile {
     // Native dispatch may compare in a seed-specific XOR-transformed opcode domain.
     // Zero preserves the fixed-profile direct-compare organization.
     std::uint8_t dispatcher_xor_key = 0;
+    std::uint8_t vector_binary = static_cast<std::uint8_t>(Opcode::VectorBinary);
+    std::uint8_t vector_compare = static_cast<std::uint8_t>(Opcode::VectorCompare);
+    std::uint8_t vector_select = static_cast<std::uint8_t>(Opcode::VectorSelect);
+    std::uint8_t vector_shift_imm = static_cast<std::uint8_t>(Opcode::VectorShiftImm);
+    std::uint8_t vector_permute = static_cast<std::uint8_t>(Opcode::VectorPermute);
+    std::uint8_t vector_load = static_cast<std::uint8_t>(Opcode::VectorLoad);
+    std::uint8_t vector_store = static_cast<std::uint8_t>(Opcode::VectorStore);
+    std::uint8_t vector_fp_binary = static_cast<std::uint8_t>(Opcode::VectorFpBinary);
+    std::uint8_t vector_move_imm_zero = static_cast<std::uint8_t>(Opcode::VectorMoveImmZero);
 
     [[nodiscard]] std::uint8_t physical(Opcode opcode) const;
     [[nodiscard]] std::uint8_t duplicate_physical(Opcode opcode) const;

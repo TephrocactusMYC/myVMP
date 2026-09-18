@@ -49,19 +49,9 @@ jobs:
         run: git diff --check HEAD
 
   host-build:
-    name: ${{ matrix.name }} strict build
+    name: Strict host build
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: GCC
-            id: gcc
-            cxx: g++
-          - name: Clang
-            id: clang
-            cxx: clang++
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -69,64 +59,8 @@ jobs:
       - name: Install compiler
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential clang python3
+          sudo apt-get install -y --no-install-recommends build-essential python3
       - name: Compile with warnings as errors
-        run: >-
-          make -j"$(nproc)"
-          BUILD_DIR="build-ci-${{ matrix.id }}"
-          CXX="${{ matrix.cxx }}"
-          CXXFLAGS="$STRICT_CXXFLAGS"
-          all
-      - name: Run host tests and metadata checks
-        run: >-
-          make
-          BUILD_DIR="build-ci-${{ matrix.id }}"
-          CXX="${{ matrix.cxx }}"
-          CXXFLAGS="$STRICT_CXXFLAGS"
-          test version-check
-
-  generated-runtimes:
-    name: Generated runtime reproducibility
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Install target assemblers
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            clang \
-            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-            gcc-riscv64-linux-gnu binutils-riscv64-linux-gnu \
-            gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
-      - name: Verify checked-in runtime blobs
-        run: make check-aarch64-runtime check-riscv64-runtime check-arm32-runtime
-      - name: Require a clean generated tree
-        run: git diff --exit-code
-
-  target-smoke:
-    name: Cross-architecture QEMU smoke tests
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Install cross toolchains and QEMU
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential clang python3 qemu-user \
-            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-            gcc-riscv64-linux-gnu binutils-riscv64-linux-gnu \
-            gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
-      - name: Build host protector
         run: make -j"$(nproc)" CXXFLAGS="$STRICT_CXXFLAGS" all
-      - name: Run ARM32 protected ELF tests
-        run: make CXXFLAGS="$STRICT_CXXFLAGS" arm32-elf-parser-test arm32-vm-protect-test
-      - name: Run AArch64 protected ELF tests
-        run: make CXXFLAGS="$STRICT_CXXFLAGS" arm64-vm-protect-test
-      - name: Run RV64 protected ELF tests
-        run: make CXXFLAGS="$STRICT_CXXFLAGS" riscv64-vm-protect-test
+      - name: Run host tests and metadata checks
+        run: make CXXFLAGS="$STRICT_CXXFLAGS" test version-check

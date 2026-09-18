@@ -16,7 +16,8 @@ AArch64、ARM32/A32、RV64 scalar 函数保护、动态 operand codec、CFG-awar
 
 ## 正确性与平台范围
 
-- 在明确语义/ABI 测试后扩展可选 AArch64/RV64 SIMD/vector；
+- 只在 decoder、typed-lane、native runtime 和 QEMU ABI 覆盖齐全时扩展已实现的 AArch64
+  固定宽度 Advanced SIMD 子集；SVE/SME 与 RVV 保持为独立的未来设计；
 - 扩展少见 atomic、relocation 和 compiler-specific scalar forms；
 - 加强 shared object、TLS、exception/unwind 和超大型应用 qualification；
 - 扩大 ARM32 compiler corpus qualification，同时把 Thumb/VFP/NEON 保持为显式后续工作。

@@ -72,3 +72,14 @@ handler variants。
 质量门禁检查唯一 payload/manifest、pairwise ciphertext distance、相同位置重合、literal
 暴露、size/runtime ratio、bridge count、owner balance 和 QEMU 行为一致。这些指标可以
 发现退化，但不能证明专业分析者无法恢复语义。
+
+## AArch64 Advanced SIMD
+
+AArch64 后端现提供显式的固定 128 位 Advanced SIMD 子集。它使用独立于 GPR 的 32 个
+`Vector128` 寄存器、8/16/32/64 位 typed lane、九类随 seed 映射的 VM opcode，以及与标量
+字节码相同的逐指令 operand codec。已实现整数 add/sub、bitwise、signed compare、bit
+select、立即数逻辑 shift、`EXT`、Q load/store、FP32/FP64 vector add/sub/mul/div 和清零。
+native call 同步 q0-q7 并保留 VM vector frame；sibling profile 独立重映射全部 vector opcode。
+
+只接受文档所列 Q=1 固定 128 位形式。其他 NEON 形式、SVE/SVE2/SME 和 RV64 Vector 仍然
+失败关闭，不会静默标量化。

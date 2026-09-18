@@ -158,6 +158,14 @@ The command exits with status 1 if any supplied threshold fails. For meaningful
 function-level metrics, extract symbol/payload byte ranges rather than comparing two
 entire binaries dominated by unchanged application code.
 
+## Error contract
+
+Failures begin on stderr with a stable `error_code=...` line followed by a human-readable
+diagnostic. Current categories are `INVALID_ARGUMENT`, `IO_ERROR`, `SYMBOL_NOT_FOUND`,
+`UNSUPPORTED_ARCHITECTURE`, `UNSUPPORTED_INSTRUCTION`, `UNSAFE_PATCH`, `OUTPUT_CONFLICT`
+and `PROTECTION_ERROR`. Automation should branch on the code instead of matching the
+free-form diagnostic.
+
 ## ARM32/A32 backend
 
 ```sh

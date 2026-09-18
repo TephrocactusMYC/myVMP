@@ -10,7 +10,7 @@
 | Linux host, AArch64/RV64 | Expected | Native host compiler required; release CI is currently cross-host focused |
 | Windows host | Supported via WSL2/container | Native Win32 build is not supported |
 | macOS host | Supported via container/Linux VM | Native Mach-O host build is not supported |
-| AArch64 ELF64 little-endian | Primary target | Executables, PIE and shared objects; broad scalar user-mode scope |
+| AArch64 ELF64 little-endian | Primary target | Executables, PIE and shared objects; broad scalar scope plus the documented fixed 128-bit Advanced SIMD subset |
 | RV64 ELF64 little-endian | Primary target | Executables, PIE and shared objects; scalar/RVC workflow covered |
 | ARM ELF32, A32 state | Supported scalar target | Executables, dynamic codecs and sibling multi-VM; no Thumb/VFP/NEON |
 | x86-64 target | Not implemented | Parser recognizes the machine but protector rejects it |
@@ -179,3 +179,7 @@ make package STATIC=1
 
 Version comes from `VERSION`; `myvmp --version`, archive name and archive root must agree.
 Release publication and signing are maintained through the repository hosting platform.
+
+Before publishing, run `make reproducible-check package-smoke-test`. This compares two
+isolated release builds with a fixed `SOURCE_DATE_EPOCH`, normalizes tar ownership/order/
+timestamps, and then extracts the package to verify the binary and required documentation.

@@ -28,6 +28,11 @@ compression/encryption, and whole-file similarity is dominated by unprotected co
 blocks, profile owner IDs, successors and bridges. `protect-many` also produces an
 aggregate batch manifest.
 
+The JSON emitted by `quality-report --json` has the stable top-level identifier
+`"schema": "myvmp-quality-v1"`. Consumers should check this value before interpreting
+metrics; additive fields may be introduced in a future schema version. The report exits
+with status 1 when any requested threshold fails, so CI can treat it as a quality gate.
+
 ## Automated report bundle
 
 The repository includes `scripts/generate_analysis_report.py`:

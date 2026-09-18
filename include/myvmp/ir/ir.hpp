@@ -105,6 +105,15 @@ enum class Opcode : std::uint8_t {
     CompareSwap,
     CallNative,
     CallNativeReg,
+    VectorBinary,
+    VectorCompare,
+    VectorSelect,
+    VectorShiftImm,
+    VectorPermute,
+    VectorLoad,
+    VectorStore,
+    VectorFpBinary,
+    VectorMoveImmZero,
     NoOp,
     ReturnReg,
 };
@@ -160,6 +169,12 @@ enum class FpConvertKind : std::uint8_t {
 enum class FpMinMaxKind : std::uint8_t {
     Min32, Min64, Max32, Max64, MinNumber32, MinNumber64, MaxNumber32, MaxNumber64,
 };
+
+enum class VectorBinaryKind : std::uint8_t { Add, Sub, And, Or, Xor };
+enum class VectorCompareKind : std::uint8_t { Equal, SignedGreaterThan };
+enum class VectorShiftKind : std::uint8_t { Left, LogicalRight };
+enum class VectorPermuteKind : std::uint8_t { Extract };
+enum class VectorFpBinaryKind : std::uint8_t { Add, Sub, Mul, Div };
 
 struct Instruction {
     Opcode opcode{};
@@ -274,6 +289,24 @@ public:
                       bool acquire = false, bool release = false);
     void call_native(std::uint64_t target, std::uint64_t link_address);
     void call_native_reg(RegisterId target, std::uint64_t link_address);
+    void vector_binary(RegisterId dst, RegisterId lhs, RegisterId rhs,
+                       VectorBinaryKind kind, std::uint8_t lane_bytes);
+    void vector_compare(RegisterId dst, RegisterId lhs, RegisterId rhs,
+                        VectorCompareKind kind, std::uint8_t lane_bytes);
+    void vector_select(RegisterId dst, RegisterId true_src, RegisterId false_src,
+                       RegisterId mask);
+    void vector_select(RegisterId dst, RegisterId true_src, RegisterId false_src) {
+        vector_select(dst, true_src, false_src, dst);
+    }
+    void vector_shift_imm(RegisterId dst, RegisterId src, VectorShiftKind kind,
+                          std::uint8_t amount, std::uint8_t lane_bytes);
+    void vector_permute(RegisterId dst, RegisterId lhs, RegisterId rhs,
+                        VectorPermuteKind kind, std::uint8_t index);
+    void vector_load(RegisterId dst, RegisterId base, std::uint64_t offset);
+    void vector_store(RegisterId src, RegisterId base, std::uint64_t offset);
+    void vector_fp_binary(RegisterId dst, RegisterId lhs, RegisterId rhs,
+                          VectorFpBinaryKind kind, std::uint8_t lane_bytes);
+    void vector_move_imm_zero(RegisterId dst);
     void no_op();
     void return_reg(RegisterId src);
 

@@ -10,7 +10,7 @@
 | Linux AArch64/RV64 host | 预期可用 | 需要本机编译器，目前发布回归主要为 cross-host |
 | Windows host | 通过 WSL2/container 支持 | 不支持原生 Win32 build |
 | macOS host | 通过 container/Linux VM 支持 | 不支持原生 Mach-O host build |
-| AArch64 ELF64 小端 | 主要目标 | executable、PIE、shared object，广泛 scalar user-mode |
+| AArch64 ELF64 小端 | 主要目标 | executable、PIE、shared object，广泛 scalar 范围及文档所列固定 128 位 Advanced SIMD 子集 |
 | RV64 ELF64 小端 | 主要目标 | executable、PIE、shared object、scalar/RVC 工作流 |
 | ARM ELF32 A32 | 支持的标量目标 | executable、动态 codec 与 sibling multi-VM；无 Thumb/VFP/NEON |
 | x86-64 target | 未实现 | parser 能识别，但 protector 明确拒绝 |
@@ -118,3 +118,7 @@ debug/development object；strip 工具并打包中英文文档；压缩包位�
 
 版本来自 `VERSION`，CLI、archive 名称和根目录必须一致。release 发布和签名由仓库托管
 平台的公开流程维护。
+
+发布前运行 `make reproducible-check package-smoke-test`。它使用固定
+`SOURCE_DATE_EPOCH` 比较两个隔离 release 构建，规范化 tar 的 owner、顺序和时间戳，
+再解包检查二进制与必要文档。

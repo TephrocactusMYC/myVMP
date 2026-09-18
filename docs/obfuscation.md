@@ -132,3 +132,17 @@ The project measures, among other things:
 These tests detect regressions such as a fixed opcode map or exposed constants. They do
 not prove that a skilled analyst cannot recover semantics. See the
 [security model](security-model.md) and [analysis guide](analysis-and-reports.md).
+
+## AArch64 Advanced SIMD
+
+The AArch64 backend has an explicit fixed-width 128-bit Advanced SIMD subset. It uses a
+32-register `Vector128` file separate from scalar GPRs, typed 8/16/32/64-bit lanes, nine
+seed-mapped VM opcode families and the same per-instruction operand codec used by scalar
+bytecode. Implemented families cover integer add/sub and bitwise operations, signed
+compare, bit select, immediate logical shifts, `EXT`, Q load/store, FP32/FP64 vector
+add/sub/mul/div and zero materialization. Native calls synchronize q0-q7 while preserving
+the VM-owned vector frame; sibling profiles independently remap all vector opcodes.
+
+Only Q=1 fixed 128-bit forms in the documented subset are accepted. Other NEON forms,
+AArch64 SVE/SVE2/SME and RV64 Vector remain fail-closed rather than being silently
+scalarized.

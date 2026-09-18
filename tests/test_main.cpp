@@ -3,6 +3,7 @@
 #include "myvmp/bytecode/bytecode.hpp"
 #include "myvmp/elf/elf.hpp"
 #include "myvmp/ir/ir.hpp"
+#include "myvmp/ir/vector.hpp"
 #include "myvmp/patch/aarch64_trampoline.hpp"
 #include "myvmp/patch/arm32_trampoline.hpp"
 #include "myvmp/protect/aarch64.hpp"
@@ -68,6 +69,106 @@ double byte_distance(const std::vector<std::uint8_t>& lhs, const std::vector<std
         }
     }
     return static_cast<double>(different) / static_cast<double>(total);
+}
+
+void test_vector128_lane_model() {
+    myvmp::ir::Vector128 lhs;
+    myvmp::ir::Vector128 rhs;
+    lhs.set_lane<std::uint64_t>(0, 0xffffffffffffffffull);
+    lhs.set_lane<std::uint64_t>(1, 7);
+    rhs.set_lane<std::uint64_t>(0, 2);
+    rhs.set_lane<std::uint64_t>(1, 9);
+    const auto sum = myvmp::ir::Vector128::map_binary<std::uint64_t>(
+        lhs, rhs, [](auto left, auto right) { return left + right; });
+    require(sum.lane<std::uint64_t>(0) == 1 && sum.lane<std::uint64_t>(1) == 16,
+            "SIMD 2D lane wrapping add mismatch");
+
+    const auto byte_sub = myvmp::ir::Vector128::apply(
+        myvmp::ir::VectorBinaryOperation::Subtract, myvmp::ir::VectorLaneWidth::Bits8,
+        lhs, rhs);
+    require(byte_sub.lane<std::uint8_t>(0) == 0xfdu,
+            "SIMD byte lane wrapping subtract mismatch");
+    const auto bit_xor = myvmp::ir::Vector128::apply(
+        myvmp::ir::VectorBinaryOperation::Xor, myvmp::ir::VectorLaneWidth::Bits64,
+        lhs, rhs);
+    require(bit_xor.lane<std::uint64_t>(1) == 14,
+            "SIMD bitwise operation mismatch");
+
+    lhs.set_lane<std::uint32_t>(1, 0x11223344u);
+    require(lhs.lane<std::uint8_t>(4) == 0x44 && lhs.lane<std::uint16_t>(2) == 0x3344,
+            "V/D/S lane aliasing must use little-endian shared storage");
+    bool rejected = false;
+    try {
+        (void)lhs.lane<std::uint64_t>(2);
+    } catch (const std::out_of_range&) {
+        rejected = true;
+    }
+    require(rejected, "out-of-range SIMD lane must fail closed");
+}
+
+void test_simd_bytecode_and_host_vm() {
+    myvmp::ir::VectorRegisterFile vectors{};
+    for (std::size_t lane = 0; lane < 4; ++lane) {
+        vectors[1].set_lane<std::uint32_t>(lane, static_cast<std::uint32_t>(lane + 1));
+        vectors[2].set_lane<std::uint32_t>(lane, static_cast<std::uint32_t>(10 + lane));
+        vectors[10].set_lane<std::uint32_t>(lane, std::bit_cast<std::uint32_t>(1.5F + static_cast<float>(lane)));
+        vectors[11].set_lane<std::uint32_t>(lane, std::bit_cast<std::uint32_t>(2.0F));
+    }
+    myvmp::ir::Program program;
+    program.vector_binary(4, 1, 2, myvmp::ir::VectorBinaryKind::Add, 4);
+    program.vector_compare(5, 2, 1, myvmp::ir::VectorCompareKind::SignedGreaterThan, 4);
+    program.vector_select(5, 1, 2, 5);
+    program.vector_shift_imm(6, 4, myvmp::ir::VectorShiftKind::LogicalRight, 1, 4);
+    program.vector_permute(7, 1, 2, myvmp::ir::VectorPermuteKind::Extract, 4);
+    program.vector_load(8, 0, 16);
+    program.vector_fp_binary(9, 10, 11, myvmp::ir::VectorFpBinaryKind::Mul, 4);
+    program.vector_store(9, 0, 64);
+    program.vector_move_imm_zero(12);
+    program.return_reg(0);
+
+    std::array<std::uint64_t, 32> scalar{};
+    std::vector<std::uint8_t> memory(128);
+    for (std::size_t index = 0; index < 16; ++index) memory[16 + index] = static_cast<std::uint8_t>(0xa0 + index);
+    const auto profile = myvmp::bytecode::profile_from_seed(0x51a0d123u);
+    const auto image = myvmp::bytecode::encode(program, {.profile = profile});
+    require(profile.physical(myvmp::bytecode::Opcode::VectorBinary) !=
+                myvmp::bytecode::fixed_profile().physical(myvmp::bytecode::Opcode::VectorBinary),
+            "seeded SIMD opcode must be dynamically remapped");
+    myvmp::vm::Interpreter vm;
+    (void)vm.execute(image, scalar, vectors, memory);
+    const auto& output = vm.vector_registers();
+    require(output[4].lane<std::uint32_t>(0) == 11 && output[4].lane<std::uint32_t>(3) == 17,
+            "SIMD bytecode integer add mismatch");
+    require(output[5] == vectors[1], "SIMD compare/select mismatch");
+    require(output[6].lane<std::uint32_t>(0) == 5, "SIMD shift mismatch");
+    require(output[7].lane<std::uint32_t>(0) == 2 && output[7].lane<std::uint32_t>(3) == 10,
+            "SIMD EXT permutation mismatch");
+    require(output[8].bytes()[0] == 0xa0 && output[8].bytes()[15] == 0xaf,
+            "SIMD load mismatch");
+    require(std::bit_cast<float>(output[9].lane<std::uint32_t>(0)) == 3.0F &&
+                std::bit_cast<float>(output[9].lane<std::uint32_t>(3)) == 9.0F,
+            "SIMD FP lane multiply mismatch");
+    require(output[12] == myvmp::ir::Vector128{}, "SIMD zero immediate mismatch");
+    require(memory[64] == output[9].bytes()[0] && memory[79] == output[9].bytes()[15],
+            "SIMD store mismatch");
+
+    myvmp::ir::Program branching;
+    branching.load_imm(0, 0);
+    branching.compare_imm(0, 0);
+    branching.branch_if(myvmp::ir::Condition::Eq, 5);
+    branching.vector_move_imm_zero(1);
+    branching.branch_if(myvmp::ir::Condition::Al, 6);
+    branching.vector_move_imm_zero(2);
+    branching.return_reg(0);
+    const auto sibling = myvmp::vm::encode_sibling(branching, {
+        .primary_seed = 0x51a0d124u,
+        .secondary_seed = 0x51a0d125u,
+        .partition_seed = 0x51a0d126u,
+    });
+    require(sibling.primary_profile.vector_move_imm_zero !=
+                sibling.secondary_profile.vector_move_imm_zero,
+            "sibling SIMD VMs must use distinct physical opcode profiles");
+    (void)vm.execute(sibling);
 }
 
 void test_ir_validation() {
@@ -1166,6 +1267,61 @@ void test_arm64_decoder() {
     require(str_reg_offset->mnemonic == myvmp::arm64::Mnemonic::StoreRegOffset, "STR register offset mnemonic mismatch");
     require(str_reg_offset->rd == 9 && str_reg_offset->rn == 10 && str_reg_offset->rm == 11 && str_reg_offset->mem_width == 8, "STR register offset operands mismatch");
 
+    const auto vector_add = decoder.decode(0x4ea884e6u); // add v6.4s, v7.4s, v8.4s
+    require(vector_add.has_value() && vector_add->mnemonic == myvmp::arm64::Mnemonic::VectorBinary &&
+                vector_add->rd == 6 && vector_add->rn == 7 && vector_add->rm == 8 &&
+                vector_add->mem_width == 4 &&
+                vector_add->imm == static_cast<std::uint64_t>(myvmp::ir::VectorBinaryKind::Add),
+            "AArch64 SIMD ADD decode mismatch");
+    const auto vector_eor = decoder.decode(0x6e371ed5u); // eor v21.16b, v22.16b, v23.16b
+    require(vector_eor.has_value() && vector_eor->mnemonic == myvmp::arm64::Mnemonic::VectorBinary &&
+                vector_eor->mem_width == 1 &&
+                vector_eor->imm == static_cast<std::uint64_t>(myvmp::ir::VectorBinaryKind::Xor),
+            "AArch64 SIMD EOR decode mismatch");
+    const auto vector_load = decoder.decode(0x3dc00818u); // ldr q24, [x0, #32]
+    require(vector_load.has_value() && vector_load->mnemonic == myvmp::arm64::Mnemonic::VectorLoad &&
+                vector_load->rd == 24 && vector_load->rn == 0 && vector_load->imm == 32,
+            "AArch64 SIMD LDR Q decode mismatch");
+    const auto vector_fp = decoder.decode(0x6e6bfd49u); // fdiv v9.2d, v10.2d, v11.2d
+    require(vector_fp.has_value() && vector_fp->mnemonic == myvmp::arm64::Mnemonic::VectorFpBinary &&
+                vector_fp->mem_width == 8 &&
+                vector_fp->imm == static_cast<std::uint64_t>(myvmp::ir::VectorFpBinaryKind::Div),
+            "AArch64 SIMD FDIV decode mismatch");
+    const auto vector_fsub = decoder.decode(0x4ee5d483u); // fsub v3.2d, v4.2d, v5.2d
+    require(vector_fsub.has_value() &&
+                vector_fsub->imm == static_cast<std::uint64_t>(myvmp::ir::VectorFpBinaryKind::Sub) &&
+                vector_fsub->mem_width == 8,
+            "AArch64 SIMD FSUB decode mismatch");
+    const auto vector_shift = decoder.decode(0x6f390672u); // ushr v18.4s, v19.4s, #7
+    require(vector_shift.has_value() && vector_shift->mnemonic == myvmp::arm64::Mnemonic::VectorShiftImm &&
+                vector_shift->mem_width == 4 && vector_shift->shift_amount == 7,
+            "AArch64 SIMD USHR decode mismatch");
+    const auto vector_shift_max = decoder.decode(0x6f410420u); // ushr v0.2d, v1.2d, #63
+    require(vector_shift_max.has_value() && vector_shift_max->mem_width == 8 &&
+                vector_shift_max->shift_amount == 63,
+            "AArch64 SIMD 64-bit USHR decode mismatch");
+    const auto vector_shift_full = decoder.decode(0x6f400420u); // ushr v0.2d, v1.2d, #64
+    require(vector_shift_full.has_value() && vector_shift_full->shift_amount == 64,
+            "AArch64 SIMD full-lane USHR must decode");
+    const auto vector_bsl = decoder.decode(0x6e621c20u); // bsl v0.16b, v1.16b, v2.16b
+    require(vector_bsl.has_value() && vector_bsl->mnemonic == myvmp::arm64::Mnemonic::VectorSelect &&
+                vector_bsl->rd == 0 && vector_bsl->rn == 1 && vector_bsl->rm == 2 && vector_bsl->imm == 0,
+            "AArch64 SIMD BSL decode mismatch");
+    const auto vector_ext = decoder.decode(0x6e182af6u); // ext v22.16b, v23.16b, v24.16b, #5
+    require(vector_ext.has_value() && vector_ext->mnemonic == myvmp::arm64::Mnemonic::VectorPermute &&
+                vector_ext->shift_amount == 5,
+            "AArch64 SIMD EXT decode mismatch");
+    require(!decoder.decode(0x0e228420u).has_value(),
+            "64-bit Advanced SIMD form must remain fail-closed");
+
+    const auto simd_program = myvmp::arm64::Lifter{}.lift(std::vector<std::uint32_t>{
+        0x6f00e400u, 0x4e228420u, 0x3d800c39u, 0xd65f03c0u});
+    require(simd_program.instructions().size() == 4 &&
+                simd_program.instructions()[0].opcode == myvmp::ir::Opcode::VectorMoveImmZero &&
+                simd_program.instructions()[1].opcode == myvmp::ir::Opcode::VectorBinary &&
+                simd_program.instructions()[2].opcode == myvmp::ir::Opcode::VectorStore,
+            "AArch64 SIMD lifter IR sequence mismatch");
+
     const auto unknown = decoder.decode(0xffffffffu);
     require(!unknown.has_value(), "unknown instruction must not decode");
 }
@@ -2019,6 +2175,15 @@ void test_arm64_lifter_fixture_sequence_to_vm() {
         case myvmp::ir::Opcode::FpMinMax:
         case myvmp::ir::Opcode::FpConditionalCompare:
         case myvmp::ir::Opcode::FpSelect:
+        case myvmp::ir::Opcode::VectorBinary:
+        case myvmp::ir::Opcode::VectorCompare:
+        case myvmp::ir::Opcode::VectorSelect:
+        case myvmp::ir::Opcode::VectorShiftImm:
+        case myvmp::ir::Opcode::VectorPermute:
+        case myvmp::ir::Opcode::VectorLoad:
+        case myvmp::ir::Opcode::VectorStore:
+        case myvmp::ir::Opcode::VectorFpBinary:
+        case myvmp::ir::Opcode::VectorMoveImmZero:
             throw std::runtime_error("unexpected memory IR in arithmetic fixture test");
         case myvmp::ir::Opcode::NoOp:
             program.no_op();
@@ -2905,6 +3070,8 @@ void test_riscv64_decoder_lifter_vertical_slice() {
 
 int main(int argc, char** argv) {
     try {
+        test_vector128_lane_model();
+        test_simd_bytecode_and_host_vm();
         test_ir_validation();
         test_vm_executes_encoded_program();
         test_vm_executes_register_ops();

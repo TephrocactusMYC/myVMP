@@ -127,6 +127,11 @@ std::size_t operand_size(Opcode opcode) {
     case Opcode::FpSelect: return 5;
     case Opcode::LoadExclusivePair: return 4;
     case Opcode::StoreExclusivePair: return 5;
+    case Opcode::VectorBinary: case Opcode::VectorCompare:
+    case Opcode::VectorShiftImm: case Opcode::VectorFpBinary: return 5;
+    case Opcode::VectorSelect: case Opcode::VectorPermute: return 4;
+    case Opcode::VectorLoad: case Opcode::VectorStore: return 11;
+    case Opcode::VectorMoveImmZero: return 1;
     case Opcode::LoadImm64: case Opcode::LoadAddress64: case Opcode::LoadFpImm64:
     case Opcode::LoadFpImm32: return 9;
     case Opcode::AddImm64: case Opcode::SubImm64: case Opcode::AndImm64:
@@ -188,6 +193,15 @@ std::optional<std::size_t> control_target_offset(Opcode opcode) {
 
 std::uint8_t VmProfile::physical(Opcode opcode) const {
     switch (opcode) {
+    case Opcode::VectorBinary: return vector_binary;
+    case Opcode::VectorCompare: return vector_compare;
+    case Opcode::VectorSelect: return vector_select;
+    case Opcode::VectorShiftImm: return vector_shift_imm;
+    case Opcode::VectorPermute: return vector_permute;
+    case Opcode::VectorLoad: return vector_load;
+    case Opcode::VectorStore: return vector_store;
+    case Opcode::VectorFpBinary: return vector_fp_binary;
+    case Opcode::VectorMoveImmZero: return vector_move_imm_zero;
     case Opcode::CompareImmBranch:
         return compare_imm_branch;
     case Opcode::JumpBlock:
@@ -366,6 +380,15 @@ std::uint8_t VmProfile::duplicate_physical(Opcode opcode) const {
 }
 
 Opcode VmProfile::logical(std::uint8_t physical_opcode) const {
+    if (physical_opcode == vector_binary) return Opcode::VectorBinary;
+    if (physical_opcode == vector_compare) return Opcode::VectorCompare;
+    if (physical_opcode == vector_select) return Opcode::VectorSelect;
+    if (physical_opcode == vector_shift_imm) return Opcode::VectorShiftImm;
+    if (physical_opcode == vector_permute) return Opcode::VectorPermute;
+    if (physical_opcode == vector_load) return Opcode::VectorLoad;
+    if (physical_opcode == vector_store) return Opcode::VectorStore;
+    if (physical_opcode == vector_fp_binary) return Opcode::VectorFpBinary;
+    if (physical_opcode == vector_move_imm_zero) return Opcode::VectorMoveImmZero;
     if (physical_opcode == compare_imm_branch) return Opcode::CompareImmBranch;
     if (physical_opcode == jump_block) return Opcode::JumpBlock;
     if (physical_opcode == compare_reg_branch) return Opcode::CompareRegBranch;
@@ -723,6 +746,15 @@ std::string VmProfile::manifest() const {
         << "    \"FpUnary\": " << static_cast<unsigned>(fp_unary) << ",\n"
         << "    \"FpConvert\": " << static_cast<unsigned>(fp_convert) << ",\n"
         << "    \"FpMinMax\": " << static_cast<unsigned>(fp_min_max) << ",\n"
+        << "    \"VectorBinary\": " << static_cast<unsigned>(vector_binary) << ",\n"
+        << "    \"VectorCompare\": " << static_cast<unsigned>(vector_compare) << ",\n"
+        << "    \"VectorSelect\": " << static_cast<unsigned>(vector_select) << ",\n"
+        << "    \"VectorShiftImm\": " << static_cast<unsigned>(vector_shift_imm) << ",\n"
+        << "    \"VectorPermute\": " << static_cast<unsigned>(vector_permute) << ",\n"
+        << "    \"VectorLoad\": " << static_cast<unsigned>(vector_load) << ",\n"
+        << "    \"VectorStore\": " << static_cast<unsigned>(vector_store) << ",\n"
+        << "    \"VectorFpBinary\": " << static_cast<unsigned>(vector_fp_binary) << ",\n"
+        << "    \"VectorMoveImmZero\": " << static_cast<unsigned>(vector_move_imm_zero) << ",\n"
         << "    \"NoOp\": " << static_cast<unsigned>(no_op) << ",\n"
         << "    \"Return\": " << static_cast<unsigned>(ret) << ",\n"
         << "    \"Halt\": " << static_cast<unsigned>(halt) << "\n"
@@ -925,6 +957,18 @@ VmProfile profile_from_seed(std::uint32_t seed) {
             *duplicate = static_cast<std::uint8_t>((state % 255u) + 1u);
         } while (used[*duplicate]);
         used[*duplicate] = true;
+    }
+    std::array<std::uint8_t*, 9> vector_opcodes{
+        &profile.vector_binary, &profile.vector_compare, &profile.vector_select,
+        &profile.vector_shift_imm, &profile.vector_permute, &profile.vector_load,
+        &profile.vector_store, &profile.vector_fp_binary, &profile.vector_move_imm_zero,
+    };
+    for (auto* vector_opcode : vector_opcodes) {
+        do {
+            state = state * kLcgMultiplier + kLcgIncrement;
+            *vector_opcode = static_cast<std::uint8_t>((state % 255u) + 1u);
+        } while (used[*vector_opcode]);
+        used[*vector_opcode] = true;
     }
     // Keep zero reserved for the fixed direct-compare dispatcher. Odd seeds and even
     // seeds deliberately land in different transformed opcode domains.
@@ -1605,6 +1649,42 @@ Image encode(const ir::Program& program, EncodeOptions options) {
             append_u8(payload, inst.dst); append_u8(payload, inst.src); append_u8(payload, inst.rhs);
             append_u8(payload, static_cast<std::uint8_t>(inst.condition));
             append_u8(payload, inst.mem_width); break;
+        case ir::Opcode::VectorBinary:
+            append_u8(payload, options.profile.physical(Opcode::VectorBinary));
+            append_u8(payload, inst.dst); append_u8(payload, inst.src); append_u8(payload, inst.rhs);
+            append_u8(payload, static_cast<std::uint8_t>(inst.imm)); append_u8(payload, inst.mem_width); break;
+        case ir::Opcode::VectorCompare:
+            append_u8(payload, options.profile.physical(Opcode::VectorCompare));
+            append_u8(payload, inst.dst); append_u8(payload, inst.src); append_u8(payload, inst.rhs);
+            append_u8(payload, static_cast<std::uint8_t>(inst.imm)); append_u8(payload, inst.mem_width); break;
+        case ir::Opcode::VectorSelect:
+            append_u8(payload, options.profile.physical(Opcode::VectorSelect));
+            append_u8(payload, inst.dst); append_u8(payload, inst.src); append_u8(payload, inst.rhs);
+            append_u8(payload, static_cast<std::uint8_t>(inst.imm)); break;
+        case ir::Opcode::VectorShiftImm:
+            append_u8(payload, options.profile.physical(Opcode::VectorShiftImm));
+            append_u8(payload, inst.dst); append_u8(payload, inst.src);
+            append_u8(payload, static_cast<std::uint8_t>(inst.imm)); append_u8(payload, inst.shift_amount);
+            append_u8(payload, inst.mem_width); break;
+        case ir::Opcode::VectorPermute:
+            append_u8(payload, options.profile.physical(Opcode::VectorPermute));
+            append_u8(payload, inst.dst); append_u8(payload, inst.src); append_u8(payload, inst.rhs);
+            append_u8(payload, static_cast<std::uint8_t>((inst.imm << 5u) | inst.shift_amount)); break;
+        case ir::Opcode::VectorLoad:
+            append_u8(payload, options.profile.physical(Opcode::VectorLoad));
+            append_u8(payload, inst.dst); append_u8(payload, inst.src); append_u64(payload, inst.imm);
+            append_u8(payload, inst.mem_width); break;
+        case ir::Opcode::VectorStore:
+            append_u8(payload, options.profile.physical(Opcode::VectorStore));
+            append_u8(payload, inst.dst); append_u8(payload, inst.src); append_u64(payload, inst.imm);
+            append_u8(payload, inst.mem_width); break;
+        case ir::Opcode::VectorFpBinary:
+            append_u8(payload, options.profile.physical(Opcode::VectorFpBinary));
+            append_u8(payload, inst.dst); append_u8(payload, inst.src); append_u8(payload, inst.rhs);
+            append_u8(payload, static_cast<std::uint8_t>(inst.imm)); append_u8(payload, inst.mem_width); break;
+        case ir::Opcode::VectorMoveImmZero:
+            append_u8(payload, options.profile.physical(Opcode::VectorMoveImmZero));
+            append_u8(payload, inst.dst); break;
         case ir::Opcode::NoOp:
             append_u8(payload, options.profile.physical(Opcode::NoOp));
             break;

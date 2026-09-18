@@ -39,7 +39,7 @@ LIB_OBJS := \
 	$(BUILD_DIR)/src/vm/multi_vm.o \
 	$(BUILD_DIR)/src/vm/vm.o
 
-.PHONY: all test version-check docs-check style-check check-release-tools release-check generate-fixtures check-generated-fixtures generate-arm32-runtime check-arm32-runtime generate-aarch64-runtime check-aarch64-runtime generate-riscv64-runtime check-riscv64-runtime integration-test arm32-elf-parser-test arm32-vm-protect-test arm64-integration-test generated-fixture-test arm64-coverage-report arm64-liftability-report arm64-protect-dry-run-test arm64-elf-patch-test arm64-vm-protect-test arm64-far-elf-test arm64-micro-lift-test bytecode-seed-sweep multi-vm-quality-test riscv64-multi-vm-quality-test riscv64-elf-stress-test riscv64-fixture-test riscv64-liftability-report riscv64-vm-protect-test asm-diff release package clean
+.PHONY: all test version-check docs-check style-check check-release-tools release-check reproducible-check package-smoke-test error-contract-test generate-fixtures check-generated-fixtures generate-arm32-runtime check-arm32-runtime generate-aarch64-runtime check-aarch64-runtime generate-riscv64-runtime check-riscv64-runtime integration-test arm32-elf-parser-test arm32-vm-protect-test arm64-integration-test generated-fixture-test arm64-coverage-report arm64-liftability-report arm64-protect-dry-run-test arm64-elf-patch-test arm64-vm-protect-test arm64-simd-test arm64-far-elf-test arm64-micro-lift-test bytecode-seed-sweep multi-vm-quality-test riscv64-multi-vm-quality-test riscv64-elf-stress-test riscv64-fixture-test riscv64-liftability-report riscv64-vm-protect-test asm-diff release package clean
 
 all: $(BUILD_DIR)/myvmp $(BUILD_DIR)/myvmp_demo $(BUILD_DIR)/myvmp_tests
 
@@ -72,8 +72,17 @@ check-release-tools:
 	@command -v clang >/dev/null || { echo "release check requires clang (install the Ubuntu clang package)" >&2; exit 1; }
 	@command -v readelf >/dev/null || { echo "release check requires readelf (install binutils)" >&2; exit 1; }
 
-release-check: check-release-tools test version-check docs-check style-check check-aarch64-runtime check-riscv64-runtime check-arm32-runtime
+release-check: check-release-tools test version-check docs-check style-check error-contract-test check-aarch64-runtime check-riscv64-runtime check-arm32-runtime
 	git diff --check
+
+reproducible-check:
+	python3 scripts/reproducible_release_check.py
+
+package-smoke-test: package
+	sh scripts/package_smoke_test.sh
+
+error-contract-test: $(BUILD_DIR)/myvmp
+	sh scripts/error_contract_test.sh
 
 riscv64-fixture-test: $(BUILD_DIR)/myvmp
 	bash scripts/riscv64_fixture_test.sh
@@ -139,6 +148,9 @@ arm64-vm-protect-test: generated-fixture-test
 	sh scripts/arm64_integration_test.sh
 	sh scripts/arm64_vm_protect_test.sh
 
+arm64-simd-test: all check-aarch64-runtime
+	sh scripts/aarch64_simd_test.sh
+
 arm64-micro-lift-test: all
 	sh scripts/arm64_micro_lift_test.sh
 
@@ -179,7 +191,8 @@ release:
 
 package: release
 	mkdir -p $(DIST_DIR)
-	tar -C $(dir $(RELEASE_DIR)) -czf \
+	tar --sort=name --mtime=@$(if $(SOURCE_DATE_EPOCH),$(SOURCE_DATE_EPOCH),0) \
+		--owner=0 --group=0 --numeric-owner -C $(dir $(RELEASE_DIR)) -czf \
 		$(DIST_DIR)/myvmp-$(VERSION)-linux-$(HOST_ARCH)-tool.tar.gz $(notdir $(RELEASE_DIR))
 
 clean:

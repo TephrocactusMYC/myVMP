@@ -24,7 +24,7 @@ constexpr std::size_t kOperandSizeTableSize = 256;
 constexpr std::uint32_t kRollingKeyInitialXor = 0x6a09e667u;
 constexpr std::uint32_t kRollingKeyBlockMix = 0x85ebca6bu;
 constexpr std::uint32_t kRollingKeyProfileMix = 0x27d4eb2du;
-constexpr std::array<bytecode::Opcode, 90> kDispatcherOpcodes{
+constexpr std::array<bytecode::Opcode, 99> kDispatcherOpcodes{
     bytecode::Opcode::LoadImm64, bytecode::Opcode::LoadAddress64,
     bytecode::Opcode::AddImm64,
     bytecode::Opcode::XorRegShifted64, bytecode::Opcode::AddRegShifted64,
@@ -73,6 +73,11 @@ constexpr std::array<bytecode::Opcode, 90> kDispatcherOpcodes{
     bytecode::Opcode::FpConvert, bytecode::Opcode::FpMinMax,
     bytecode::Opcode::FpConditionalCompare, bytecode::Opcode::FpSelect,
     bytecode::Opcode::LoadExclusivePair, bytecode::Opcode::StoreExclusivePair,
+    bytecode::Opcode::VectorBinary, bytecode::Opcode::VectorCompare,
+    bytecode::Opcode::VectorSelect, bytecode::Opcode::VectorShiftImm,
+    bytecode::Opcode::VectorPermute, bytecode::Opcode::VectorLoad,
+    bytecode::Opcode::VectorStore, bytecode::Opcode::VectorFpBinary,
+    bytecode::Opcode::VectorMoveImmZero,
     bytecode::Opcode::NoOp, bytecode::Opcode::Return, bytecode::Opcode::JumpBlock,
     bytecode::Opcode::Halt,
 };

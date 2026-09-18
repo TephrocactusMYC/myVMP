@@ -94,6 +94,43 @@ void check_reg(std::uint8_t reg) {
     }
 }
 
+void check_vector_reg(std::uint8_t reg) {
+    if (reg >= 32) throw std::runtime_error("VM SIMD register index out of range");
+}
+
+void check_vector_width(std::uint8_t width) {
+    if (width != 1 && width != 2 && width != 4 && width != 8) {
+        throw std::runtime_error("VM SIMD lane width is invalid");
+    }
+}
+
+template <typename Lane, typename Operation>
+ir::Vector128 vector_map(const ir::Vector128& lhs, const ir::Vector128& rhs,
+                         Operation operation) {
+    return ir::Vector128::map_binary<Lane>(lhs, rhs, operation);
+}
+
+template <typename Lane, typename Operation>
+ir::Vector128 vector_map_unary(const ir::Vector128& source, Operation operation) {
+    ir::Vector128 result;
+    for (std::size_t index = 0; index < ir::Vector128::kBytes / sizeof(Lane); ++index) {
+        result.set_lane<Lane>(index, operation(source.lane<Lane>(index)));
+    }
+    return result;
+}
+
+template <typename Float, typename Bits, typename Operation>
+ir::Vector128 vector_fp_map(const ir::Vector128& lhs, const ir::Vector128& rhs,
+                            Operation operation) {
+    ir::Vector128 result;
+    for (std::size_t index = 0; index < ir::Vector128::kBytes / sizeof(Float); ++index) {
+        const auto left = std::bit_cast<Float>(lhs.lane<Bits>(index));
+        const auto right = std::bit_cast<Float>(rhs.lane<Bits>(index));
+        result.set_lane<Bits>(index, std::bit_cast<Bits>(operation(left, right)));
+    }
+    return result;
+}
+
 bool test_condition(const Flags& flags, ir::Condition condition) {
     switch (condition) {
     case ir::Condition::Eq:
@@ -243,8 +280,16 @@ Result Interpreter::execute(const bytecode::Image& image, const std::array<std::
 Result Interpreter::execute(const bytecode::Image& image,
                             const std::array<std::uint64_t, 32>& initial_registers,
                             std::vector<std::uint8_t>& memory) {
+    return execute(image, initial_registers, {}, memory);
+}
+
+Result Interpreter::execute(const bytecode::Image& image,
+                            const std::array<std::uint64_t, 32>& initial_registers,
+                            const ir::VectorRegisterFile& initial_vectors,
+                            std::vector<std::uint8_t>& memory) {
     regs_.fill(0);
     fp_regs_.fill(0);
+    vector_regs_ = initial_vectors;
     std::copy(initial_registers.begin(), initial_registers.end(), regs_.begin());
     flags_ = {};
     const auto bytes = bytecode::decode_payload(image);
@@ -300,6 +345,136 @@ Result Interpreter::execute(const bytecode::Image& image,
         ++result.instructions_executed;
 
         switch (opcode) {
+        case bytecode::Opcode::VectorMoveImmZero: {
+            const auto dst = read_u8(bytes, pc);
+            check_vector_reg(dst);
+            vector_regs_[dst] = {};
+            break;
+        }
+        case bytecode::Opcode::VectorBinary: {
+            const auto dst = read_u8(bytes, pc), lhs = read_u8(bytes, pc), rhs = read_u8(bytes, pc);
+            const auto operation = read_u8(bytes, pc), width = read_u8(bytes, pc);
+            check_vector_reg(dst); check_vector_reg(lhs); check_vector_reg(rhs); check_vector_width(width);
+            if (operation > static_cast<std::uint8_t>(ir::VectorBinaryOperation::Xor)) {
+                throw std::runtime_error("VM SIMD binary operation is invalid");
+            }
+            vector_regs_[dst] = ir::Vector128::apply(
+                static_cast<ir::VectorBinaryOperation>(operation),
+                static_cast<ir::VectorLaneWidth>(width), vector_regs_[lhs], vector_regs_[rhs]);
+            break;
+        }
+        case bytecode::Opcode::VectorCompare: {
+            const auto dst = read_u8(bytes, pc), lhs = read_u8(bytes, pc), rhs = read_u8(bytes, pc);
+            const auto operation = read_u8(bytes, pc), width = read_u8(bytes, pc);
+            check_vector_reg(dst); check_vector_reg(lhs); check_vector_reg(rhs); check_vector_width(width);
+            if (operation > 1) throw std::runtime_error("VM SIMD compare operation is invalid");
+            const auto compare = [operation](auto left, auto right) {
+                using Lane = decltype(left);
+                bool matches = false;
+                if (operation == 0) matches = left == right;
+                if (operation == 1) matches = static_cast<std::make_signed_t<Lane>>(left) > static_cast<std::make_signed_t<Lane>>(right);
+                return matches ? std::numeric_limits<Lane>::max() : Lane{0};
+            };
+            switch (width) {
+            case 1: vector_regs_[dst] = vector_map<std::uint8_t>(vector_regs_[lhs], vector_regs_[rhs], compare); break;
+            case 2: vector_regs_[dst] = vector_map<std::uint16_t>(vector_regs_[lhs], vector_regs_[rhs], compare); break;
+            case 4: vector_regs_[dst] = vector_map<std::uint32_t>(vector_regs_[lhs], vector_regs_[rhs], compare); break;
+            case 8: vector_regs_[dst] = vector_map<std::uint64_t>(vector_regs_[lhs], vector_regs_[rhs], compare); break;
+            default: throw std::runtime_error("VM SIMD lane width is invalid");
+            }
+            break;
+        }
+        case bytecode::Opcode::VectorSelect: {
+            const auto dst = read_u8(bytes, pc), lhs = read_u8(bytes, pc), rhs = read_u8(bytes, pc);
+            const auto mask = read_u8(bytes, pc);
+            check_vector_reg(dst); check_vector_reg(lhs); check_vector_reg(rhs); check_vector_reg(mask);
+            std::array<std::uint8_t, ir::Vector128::kBytes> selected{};
+            for (std::size_t index = 0; index < selected.size(); ++index) {
+                const auto bits = vector_regs_[mask].bytes()[index];
+                selected[index] = static_cast<std::uint8_t>((bits & vector_regs_[lhs].bytes()[index]) |
+                    (static_cast<std::uint8_t>(~bits) & vector_regs_[rhs].bytes()[index]));
+            }
+            vector_regs_[dst] = ir::Vector128{selected};
+            break;
+        }
+        case bytecode::Opcode::VectorShiftImm: {
+            const auto dst = read_u8(bytes, pc), src = read_u8(bytes, pc), kind = read_u8(bytes, pc);
+            const auto amount = read_u8(bytes, pc), width = read_u8(bytes, pc);
+            check_vector_reg(dst); check_vector_reg(src); check_vector_width(width);
+            const auto lane_bits = static_cast<std::uint8_t>(width * 8);
+            if (kind > 1 || amount > lane_bits ||
+                (kind == 0 && amount == lane_bits) || (kind == 1 && amount == 0)) {
+                throw std::runtime_error("VM SIMD shift operand is invalid");
+            }
+            const auto shift = [kind, amount, lane_bits](auto value) {
+                using Lane = decltype(value);
+                if (kind == 1 && amount == lane_bits) return static_cast<Lane>(0);
+                if (kind == 0) return static_cast<Lane>(value << amount);
+                if (kind == 1) return static_cast<Lane>(value >> amount);
+                return static_cast<Lane>(value >> amount);
+            };
+            switch (width) {
+            case 1: vector_regs_[dst] = vector_map_unary<std::uint8_t>(vector_regs_[src], shift); break;
+            case 2: vector_regs_[dst] = vector_map_unary<std::uint16_t>(vector_regs_[src], shift); break;
+            case 4: vector_regs_[dst] = vector_map_unary<std::uint32_t>(vector_regs_[src], shift); break;
+            case 8: vector_regs_[dst] = vector_map_unary<std::uint64_t>(vector_regs_[src], shift); break;
+            default: throw std::runtime_error("VM SIMD lane width is invalid");
+            }
+            break;
+        }
+        case bytecode::Opcode::VectorPermute: {
+            const auto dst = read_u8(bytes, pc), lhs = read_u8(bytes, pc), rhs = read_u8(bytes, pc);
+            const auto control = read_u8(bytes, pc);
+            check_vector_reg(dst); check_vector_reg(lhs); check_vector_reg(rhs);
+            const auto operation = control >> 5u;
+            const auto index = control & 0x1fu;
+            if (operation != 0 || index >= 16) throw std::runtime_error("VM SIMD permute operand is invalid");
+            std::array<std::uint8_t, ir::Vector128::kBytes> output{};
+            for (std::size_t byte = 0; byte < output.size(); ++byte) {
+                const auto source_index = byte + index;
+                output[byte] = source_index < 16 ? vector_regs_[lhs].bytes()[source_index]
+                                                 : vector_regs_[rhs].bytes()[source_index - 16];
+            }
+            vector_regs_[dst] = ir::Vector128{output};
+            break;
+        }
+        case bytecode::Opcode::VectorLoad:
+        case bytecode::Opcode::VectorStore: {
+            const auto vector_reg = read_u8(bytes, pc), base = read_u8(bytes, pc);
+            const auto offset = read_u64(bytes, pc);
+            const auto width = read_u8(bytes, pc);
+            check_vector_reg(vector_reg); check_reg(base);
+            if (width != 16) throw std::runtime_error("VM SIMD memory width is invalid");
+            const auto address = regs_[base] + offset;
+            if (address > memory.size() || width > memory.size() - static_cast<std::size_t>(address)) {
+                throw std::runtime_error("VM SIMD memory access out of range");
+            }
+            if (opcode == bytecode::Opcode::VectorLoad) {
+                std::array<std::uint8_t, ir::Vector128::kBytes> loaded{};
+                std::copy_n(memory.begin() + static_cast<std::ptrdiff_t>(address), loaded.size(), loaded.begin());
+                vector_regs_[vector_reg] = ir::Vector128{loaded};
+            } else {
+                std::copy(vector_regs_[vector_reg].bytes().begin(), vector_regs_[vector_reg].bytes().end(),
+                          memory.begin() + static_cast<std::ptrdiff_t>(address));
+            }
+            break;
+        }
+        case bytecode::Opcode::VectorFpBinary: {
+            const auto dst = read_u8(bytes, pc), lhs = read_u8(bytes, pc), rhs = read_u8(bytes, pc);
+            const auto operation = read_u8(bytes, pc), width = read_u8(bytes, pc);
+            check_vector_reg(dst); check_vector_reg(lhs); check_vector_reg(rhs);
+            if (operation > 3 || (width != 4 && width != 8)) throw std::runtime_error("VM SIMD FP operand is invalid");
+            const auto arithmetic = [operation](auto left, auto right) {
+                if (operation == 0) return left + right;
+                if (operation == 1) return left - right;
+                if (operation == 2) return left * right;
+                return left / right;
+            };
+            vector_regs_[dst] = width == 4
+                ? vector_fp_map<float, std::uint32_t>(vector_regs_[lhs], vector_regs_[rhs], arithmetic)
+                : vector_fp_map<double, std::uint64_t>(vector_regs_[lhs], vector_regs_[rhs], arithmetic);
+            break;
+        }
         case bytecode::Opcode::LoadImm64: {
             const auto dst = read_u8(bytes, pc);
             check_reg(dst);

@@ -19,6 +19,10 @@ block owner、bridge 与 payload metadata；字节暴露、差异度、size 和 
 保护 sidecar 是 JSON，包含 architecture、VM mode、codec、profile、物理块、owner、
 successor 和 bridge。批量保护还会产生 aggregate batch manifest。
 
+`quality-report --json` 输出具有稳定的顶层标识
+`"schema": "myvmp-quality-v1"`。解析器应先检查该值，再解释指标；未来 schema 版本可能
+增加字段。任一指定阈值失败时命令返回状态码 1，因此可以直接作为 CI 质量门禁。
+
 ## 自动报告包
 
 ```sh

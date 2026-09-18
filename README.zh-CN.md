@@ -25,6 +25,8 @@ runtime 和加密字节码替换其原生控制流。它不需要 LLVM fork、�
   bridge 跨 VM 执行，而不是静态放置第二个 dispatcher。
 - **三条完整保护路径、一套统一设计：**三种架构共享语义 IR、字节码/profile 接口、manifest
   与质量门禁，同时保留经审计的 ISA 专属 lifter、runtime 和距离安全跳板。
+- **AArch64 SIMD 虚拟化：**经过测试的固定 128 位 Advanced SIMD 子集覆盖整数与浮点
+  lane、Q load/store、比较/选择、移位和 EXT，并贯通动态 profile、sibling VM 与原生调用桥。
 - **为选择性保护设计：**可保护一个函数，也可用 `protect-many` 指定一组函数，把启动与体积
   成本集中在安全关键代码上。
 - **失败关闭：**不支持的指令、危险重定位、畸形 ELF 和不安全 patch 计划会在发布前拒绝。
@@ -177,8 +179,9 @@ python3 scripts/generate_analysis_report.py \
   --symbol protected_calculation --output analysis
 ```
 
-报告包含 ELF 规划、profile 元数据、哈希和字节质量指标。这些指标用于回归，不能单独
-证明抵抗反虚拟化的能力。
+报告包含 ELF 规划、profile 元数据、哈希和字节质量指标。`quality-report --json` 会声明
+稳定的 `myvmp-quality-v1` schema，CI 可在解析字段前校验契约。这些指标用于回归，不能
+单独证明抵抗反虚拟化的能力。
 
 ## 文档
 
@@ -210,7 +213,7 @@ myVMP 使用 [GNU GPL v3.0 only](LICENSE)。贡献内容采用相同许可证，
   title   = {myVMP: Dynamic Multi-Architecture ELF Virtualization},
   year    = {2026},
   version = {0.1.0},
-  url     = {https://github.com/TephrocactusMYC/CactiVM},
+  url     = {https://github.com/TephrocactusMYC/myVMP},
   license = {GPL-3.0-only}
 }
 ```

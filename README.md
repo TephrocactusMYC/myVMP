@@ -28,6 +28,9 @@ and the original ELF is never modified.
 - **Three production paths, one design:** AArch64, ARM32/A32 and RV64 share semantic IR,
   bytecode/profile APIs, manifests and quality gates while retaining audited ISA-specific
   lifters, runtimes and range-safe detours.
+- **AArch64 SIMD virtualization:** a tested fixed 128-bit Advanced SIMD subset covers
+  integer and floating-point lanes, Q loads/stores, compare/select, shifts and EXT through
+  dynamic profiles, sibling VMs and the native-call bridge.
 - **Selective by design:** protect one function or an explicit set with `protect-many`,
   keeping startup time and file growth focused on security-critical code.
 - **Fail closed:** unsupported instructions, relocations, malformed ELF ranges and unsafe
@@ -213,7 +216,9 @@ python3 scripts/generate_analysis_report.py \
 ```
 
 The report bundle combines ELF planning, profile metadata, hashes and byte-level quality
-metrics. Metrics are regression evidence, not a proof of resistance to devirtualization.
+metrics. `quality-report --json` declares the stable `myvmp-quality-v1` schema so CI can
+validate the contract before parsing fields. Metrics are regression evidence, not a proof
+of resistance to devirtualization.
 
 ## Validation targets
 

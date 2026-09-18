@@ -222,6 +222,138 @@ std::optional<DecodedInstruction> Decoder::decode(std::uint32_t word) const {
         return DecodedInstruction{Mnemonic::Ret, 30, 0, 0, 0};
     }
 
+    // Advanced SIMD instructions below deliberately accept only Q=1 forms.  The
+    // VM vector register file is fixed at 128 bits, so 64-bit vector forms must
+    // remain fail-closed rather than silently acquiring different upper-lane semantics.
+    if ((word & 0xffffffe0u) == 0x6f00e400u) {
+        return DecodedInstruction{Mnemonic::VectorMoveImmZero,
+                                  static_cast<std::uint8_t>(word & 0x1fu)};
+    }
+    if ((word & 0x40000000u) != 0 &&
+        ((word & 0xbf20fc00u) == 0x0e208400u ||
+         (word & 0xbf20fc00u) == 0x2e208400u)) {
+        const auto lane_bytes = static_cast<std::uint8_t>(1u << ((word >> 22u) & 3u));
+        return DecodedInstruction{Mnemonic::VectorBinary,
+                                  static_cast<std::uint8_t>(word & 0x1fu),
+                                  static_cast<std::uint8_t>((word >> 5u) & 0x1fu),
+                                  static_cast<std::uint8_t>((word >> 16u) & 0x1fu),
+                                  (word & 0x20000000u) != 0
+                                      ? static_cast<std::uint64_t>(ir::VectorBinaryKind::Sub)
+                                      : static_cast<std::uint64_t>(ir::VectorBinaryKind::Add),
+                                  ir::ShiftKind::Lsl, 0, ir::Condition::Eq, 0,
+                                  ir::ExtendKind::Uxtx, false, lane_bytes};
+    }
+    if ((word & 0x40000000u) != 0) {
+        const auto logical = word & 0xbfe0fc00u;
+        const auto kind = logical == 0x0e201c00u ? std::optional{ir::VectorBinaryKind::And}
+                          : logical == 0x0ea01c00u ? std::optional{ir::VectorBinaryKind::Or}
+                          : logical == 0x2e201c00u ? std::optional{ir::VectorBinaryKind::Xor}
+                                                  : std::nullopt;
+        if (kind.has_value()) {
+            return DecodedInstruction{Mnemonic::VectorBinary,
+                                      static_cast<std::uint8_t>(word & 0x1fu),
+                                      static_cast<std::uint8_t>((word >> 5u) & 0x1fu),
+                                      static_cast<std::uint8_t>((word >> 16u) & 0x1fu),
+                                      static_cast<std::uint64_t>(*kind), ir::ShiftKind::Lsl, 0,
+                                      ir::Condition::Eq, 0, ir::ExtendKind::Uxtx, false, 1};
+        }
+        if (logical == 0x2e601c00u) {
+            const auto rd = static_cast<std::uint8_t>(word & 0x1fu);
+            return DecodedInstruction{Mnemonic::VectorSelect, rd,
+                                      static_cast<std::uint8_t>((word >> 5u) & 0x1fu),
+                                      static_cast<std::uint8_t>((word >> 16u) & 0x1fu), rd};
+        }
+    }
+    if ((word & 0xffc00000u) == 0x3dc00000u ||
+        (word & 0xffc00000u) == 0x3d800000u) {
+        return DecodedInstruction{(word & 0x00400000u) != 0 ? Mnemonic::VectorLoad
+                                                            : Mnemonic::VectorStore,
+                                  static_cast<std::uint8_t>(word & 0x1fu),
+                                  static_cast<std::uint8_t>((word >> 5u) & 0x1fu), 0,
+                                  static_cast<std::uint64_t>((word >> 10u) & 0xfffu) * 16u,
+                                  ir::ShiftKind::Lsl, 0, ir::Condition::Eq, 0,
+                                  ir::ExtendKind::Uxtx, false, 16};
+    }
+    if ((word & 0x40000000u) != 0) {
+        const auto fp = word & 0xbfa0fc00u;
+        const auto kind = fp == 0x0e20d400u ? std::optional{ir::VectorFpBinaryKind::Add}
+                          : fp == 0x0ea0d400u ? std::optional{ir::VectorFpBinaryKind::Sub}
+                          : fp == 0x2e20dc00u ? std::optional{ir::VectorFpBinaryKind::Mul}
+                          : fp == 0x2e20fc00u ? std::optional{ir::VectorFpBinaryKind::Div}
+                                             : std::nullopt;
+        if (kind.has_value()) {
+            return DecodedInstruction{Mnemonic::VectorFpBinary,
+                                      static_cast<std::uint8_t>(word & 0x1fu),
+                                      static_cast<std::uint8_t>((word >> 5u) & 0x1fu),
+                                      static_cast<std::uint8_t>((word >> 16u) & 0x1fu),
+                                      static_cast<std::uint64_t>(*kind), ir::ShiftKind::Lsl, 0,
+                                      ir::Condition::Eq, 0, ir::ExtendKind::Uxtx, false,
+                                      static_cast<std::uint8_t>(((word >> 22u) & 1u) != 0 ? 8 : 4)};
+        }
+        const auto compare = word & 0xbf20fc00u;
+        const auto compare_kind = compare == 0x2e208c00u ? std::optional{ir::VectorCompareKind::Equal}
+                                  : compare == 0x0e203400u
+                                      ? std::optional{ir::VectorCompareKind::SignedGreaterThan}
+                                      : std::nullopt;
+        if (compare_kind.has_value()) {
+            return DecodedInstruction{Mnemonic::VectorCompare,
+                                      static_cast<std::uint8_t>(word & 0x1fu),
+                                      static_cast<std::uint8_t>((word >> 5u) & 0x1fu),
+                                      static_cast<std::uint8_t>((word >> 16u) & 0x1fu),
+                                      static_cast<std::uint64_t>(*compare_kind), ir::ShiftKind::Lsl, 0,
+                                      ir::Condition::Eq, 0, ir::ExtendKind::Uxtx, false,
+                                      static_cast<std::uint8_t>(1u << ((word >> 22u) & 3u))};
+        }
+    }
+    if ((word & 0x40000000u) != 0 && (word & 0xbf80fc00u) == 0x2f000400u) {
+        const auto encoded = static_cast<std::uint8_t>((word >> 16u) & 0x7fu);
+        const auto immh = static_cast<std::uint8_t>(encoded >> 3u);
+        if (immh != 0) {
+            std::uint8_t lane_bits = 8;
+            for (auto value = static_cast<std::uint8_t>(immh >> 1u); value != 0; value >>= 1u) {
+                lane_bits = static_cast<std::uint8_t>(lane_bits * 2u);
+            }
+            const auto amount = static_cast<std::uint8_t>(lane_bits * 2u - encoded);
+            if (amount > 0 && amount <= lane_bits) {
+                return DecodedInstruction{Mnemonic::VectorShiftImm,
+                                          static_cast<std::uint8_t>(word & 0x1fu),
+                                          static_cast<std::uint8_t>((word >> 5u) & 0x1fu), 0,
+                                          static_cast<std::uint64_t>(ir::VectorShiftKind::LogicalRight),
+                                          ir::ShiftKind::Lsl, amount, ir::Condition::Eq, 0,
+                                          ir::ExtendKind::Uxtx, false,
+                                          static_cast<std::uint8_t>(lane_bits / 8u)};
+            }
+        }
+    }
+    if ((word & 0x40000000u) != 0 && (word & 0xbf80fc00u) == 0x0f005400u) {
+        const auto encoded = static_cast<std::uint8_t>((word >> 16u) & 0x7fu);
+        const auto immh = static_cast<std::uint8_t>(encoded >> 3u);
+        if (immh != 0) {
+            std::uint8_t lane_bits = 8;
+            for (auto value = static_cast<std::uint8_t>(immh >> 1u); value != 0; value >>= 1u) {
+                lane_bits = static_cast<std::uint8_t>(lane_bits * 2u);
+            }
+            const auto amount = static_cast<std::uint8_t>(encoded - lane_bits);
+            if (amount < lane_bits) {
+                return DecodedInstruction{Mnemonic::VectorShiftImm,
+                                          static_cast<std::uint8_t>(word & 0x1fu),
+                                          static_cast<std::uint8_t>((word >> 5u) & 0x1fu), 0,
+                                          static_cast<std::uint64_t>(ir::VectorShiftKind::Left),
+                                          ir::ShiftKind::Lsl, amount, ir::Condition::Eq, 0,
+                                          ir::ExtendKind::Uxtx, false,
+                                          static_cast<std::uint8_t>(lane_bits / 8u)};
+            }
+        }
+    }
+    if ((word & 0x40000000u) != 0 && (word & 0xbfe08400u) == 0x2e000000u) {
+        return DecodedInstruction{Mnemonic::VectorPermute,
+                                  static_cast<std::uint8_t>(word & 0x1fu),
+                                  static_cast<std::uint8_t>((word >> 5u) & 0x1fu),
+                                  static_cast<std::uint8_t>((word >> 16u) & 0x1fu),
+                                  static_cast<std::uint64_t>(ir::VectorPermuteKind::Extract),
+                                  ir::ShiftKind::Lsl, static_cast<std::uint8_t>((word >> 11u) & 0xfu)};
+    }
+
     if ((word & 0xffe01fe0u) == 0x1e601000u) {
         const auto rd = static_cast<std::uint8_t>(word & 0x1fu);
         const auto imm8 = static_cast<std::uint8_t>((word >> 13u) & 0xffu);
@@ -1651,6 +1783,44 @@ ir::Program lift_region(const Decoder& decoder,
             program.fp_select(decoded->rd, decoded->rn, decoded->rm, decoded->condition,
                               decoded->mem_width == 8);
             break;
+        case Mnemonic::VectorBinary:
+            program.vector_binary(decoded->rd, decoded->rn, decoded->rm,
+                                  static_cast<ir::VectorBinaryKind>(decoded->imm),
+                                  decoded->mem_width);
+            break;
+        case Mnemonic::VectorCompare:
+            program.vector_compare(decoded->rd, decoded->rn, decoded->rm,
+                                   static_cast<ir::VectorCompareKind>(decoded->imm),
+                                   decoded->mem_width);
+            break;
+        case Mnemonic::VectorSelect:
+            program.vector_select(decoded->rd, decoded->rn, decoded->rm,
+                                  static_cast<ir::RegisterId>(decoded->imm));
+            break;
+        case Mnemonic::VectorShiftImm:
+            program.vector_shift_imm(decoded->rd, decoded->rn,
+                                     static_cast<ir::VectorShiftKind>(decoded->imm),
+                                     decoded->shift_amount, decoded->mem_width);
+            break;
+        case Mnemonic::VectorPermute:
+            program.vector_permute(decoded->rd, decoded->rn, decoded->rm,
+                                   static_cast<ir::VectorPermuteKind>(decoded->imm),
+                                   decoded->shift_amount);
+            break;
+        case Mnemonic::VectorLoad:
+            program.vector_load(decoded->rd, decoded->rn, decoded->imm);
+            break;
+        case Mnemonic::VectorStore:
+            program.vector_store(decoded->rd, decoded->rn, decoded->imm);
+            break;
+        case Mnemonic::VectorFpBinary:
+            program.vector_fp_binary(decoded->rd, decoded->rn, decoded->rm,
+                                     static_cast<ir::VectorFpBinaryKind>(decoded->imm),
+                                     decoded->mem_width);
+            break;
+        case Mnemonic::VectorMoveImmZero:
+            program.vector_move_imm_zero(decoded->rd);
+            break;
         case Mnemonic::Ret:
             program.return_reg(0);
             break;
@@ -1898,6 +2068,15 @@ std::string to_string(Mnemonic mnemonic) {
     case Mnemonic::FpMinMax: return "FP_MIN_MAX";
     case Mnemonic::FpConditionalCompare: return "FP_CONDITIONAL_COMPARE";
     case Mnemonic::FpSelect: return "FP_SELECT";
+    case Mnemonic::VectorBinary: return "VECTOR_BINARY";
+    case Mnemonic::VectorCompare: return "VECTOR_COMPARE";
+    case Mnemonic::VectorSelect: return "VECTOR_SELECT";
+    case Mnemonic::VectorShiftImm: return "VECTOR_SHIFT_IMM";
+    case Mnemonic::VectorPermute: return "VECTOR_PERMUTE";
+    case Mnemonic::VectorLoad: return "VECTOR_LOAD";
+    case Mnemonic::VectorStore: return "VECTOR_STORE";
+    case Mnemonic::VectorFpBinary: return "VECTOR_FP_BINARY";
+    case Mnemonic::VectorMoveImmZero: return "VECTOR_MOVI_ZERO";
     case Mnemonic::Ret:
         return "RET";
     }
