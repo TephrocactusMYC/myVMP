@@ -7,7 +7,7 @@
 | Component | Status | Notes |
 |---|---|---|
 | Linux host, x86-64 | Primary | Native C++ tool build; cross toolchains for target tests |
-| Linux host, AArch64/RV64 | Expected | Native host compiler required; release CI is currently cross-host focused |
+| Linux host, AArch64/RV64 | Expected | Native host compiler required; compile and target gates are run locally |
 | Windows host | Supported via WSL2/container | Native Win32 build is not supported |
 | macOS host | Supported via container/Linux VM | Native Mach-O host build is not supported |
 | AArch64 ELF64 little-endian | Primary target | Executables, PIE and shared objects; broad scalar scope plus the documented fixed 128-bit Advanced SIMD subset |
@@ -76,9 +76,9 @@ blob generation scripts currently expect the GNU cross tools named in the Makefi
 
 ## Windows with WSL2
 
-Install Ubuntu under WSL2, clone the repository inside the WSL filesystem (for example
-`~/src/myVMP`, not `/mnt/c/...` for best I/O performance), then use the Ubuntu commands
-above. WSL2 is the preferred Windows workflow because the tool, generated ELF files,
+Install Ubuntu under WSL2 and clone the repository inside its Linux filesystem rather than
+a Windows-mounted drive for best I/O performance. Then use the Ubuntu commands above.
+WSL2 is the preferred Windows workflow because the tool, generated ELF files,
 cross compilers and QEMU all run in their intended Linux environment.
 
 ```powershell

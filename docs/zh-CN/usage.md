@@ -58,12 +58,14 @@ lifting、encoding 和规划但不写 ELF；日志可包含 IR、bytecode、prof
 ## 行为验证
 
 ```sh
-qemu-aarch64 -L /usr/aarch64-linux-gnu ./app.arm64 > original.out
-qemu-aarch64 -L /usr/aarch64-linux-gnu ./app.protected.arm64 > protected.out
+aarch64_sysroot=$(dirname "$(dirname "$(aarch64-linux-gnu-gcc -print-file-name=libc.so.6)")")
+qemu-aarch64 -L "$aarch64_sysroot" ./app.arm64 > original.out
+qemu-aarch64 -L "$aarch64_sysroot" ./app.protected.arm64 > protected.out
 cmp original.out protected.out
 
-qemu-riscv64 -L /usr/riscv64-linux-gnu ./app.rv64 > original.out
-qemu-riscv64 -L /usr/riscv64-linux-gnu ./app.protected.rv64 > protected.out
+riscv64_sysroot=$(dirname "$(dirname "$(riscv64-linux-gnu-gcc -print-file-name=libc.so.6)")")
+qemu-riscv64 -L "$riscv64_sysroot" ./app.rv64 > original.out
+qemu-riscv64 -L "$riscv64_sysroot" ./app.protected.rv64 > protected.out
 cmp original.out protected.out
 ```
 
@@ -99,7 +101,8 @@ cmp original.out protected.out
 arm-linux-gnueabihf-gcc -O2 -g -marm -fno-inline -fno-stack-protector app.c -o app.arm32
 ./build/myvmp protect app.arm32 verify_token app.protected.arm32 1001
 ./build/myvmp protect app.arm32 verify_token app.multi.arm32 1001 --multi-vm 2002
-qemu-arm -L /usr/arm-linux-gnueabihf ./app.protected.arm32
+arm32_sysroot=$(dirname "$(dirname "$(arm-linux-gnueabihf-gcc -print-file-name=libc.so.6)")")
+qemu-arm -L "$arm32_sysroot" ./app.protected.arm32
 ```
 
 该后端支持小端 ELF32 ARM-state 标量函数、动态 opcode/operand codec、CFG block

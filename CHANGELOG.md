@@ -9,14 +9,20 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed / 变更
 
-- Replaced pre-release automation with strict public-repository quality gates: GCC/Clang
-  warning-free builds, source hygiene, ShellCheck, documentation, runtime reproducibility,
-  and protected-ELF QEMU tests for all supported architectures.
-- 将发布前自动化替换为严格的公开仓库质量门禁：GCC/Clang 零 warning 构建、源码规范、
-  ShellCheck、文档、runtime 可复现检查及全部支持架构的保护后 ELF QEMU 测试。
+- Replaced the slow build/test workflow with a documentation-only GitHub Pages publisher;
+  MkDocs sources remain Markdown on the source branch and generated pages go to `gh-pages`.
+- 将耗时的编译/测试 workflow 替换为仅发布文档的 GitHub Pages 流程；源码分支只保留
+  Markdown，生成的网站推送到 `gh-pages`。
 - Removed accidentally tracked build/sanitizer outputs and obsolete internal release
   preparation documents; expanded ignore rules for generated artifacts.
 - 删除误跟踪的 build/sanitizer 产物和过时的内部发布准备文档，并完善生成物忽略规则。
+- Added an attacker-side payload/manifest oracle, bounded same-block superoperator mining,
+  and a reversible live-state model exercised by the host sibling interpreter. Bytecode
+  synthesis and native runtime state bridges are not yet integrated. VM calls transfer the
+  full caller state across profiles and resolve shuffled-block return continuations.
+- 新增攻击者视角 payload/manifest 分析工具、有界同基本块 superoperator 挖掘，以及由 host
+  sibling interpreter 实际执行验证的可逆 live-state 模型。字节码合成和原生 runtime 状态桥
+  尚未集成。跨 profile 的 VM 调用会传递完整调用者状态，并正确解析乱序 block 的返回续点。
 
 ## [0.1.0] - 2026-08-22
 

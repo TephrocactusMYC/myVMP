@@ -2,8 +2,10 @@
 set -euo pipefail
 
 repo_dir=$(cd "$(dirname "$0")/.." && pwd)
-work_dir=$(mktemp -d)
-trap 'rm -rf "$work_dir"' EXIT
+cd "$repo_dir"
+mkdir -p build/tmp
+work_dir=$(mktemp -d build/tmp/rv64-fixture.XXXXXX)
+trap 'rm -r "$work_dir"' EXIT
 
 readelf_bin=${READELF:-readelf}
 

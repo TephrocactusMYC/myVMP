@@ -12,6 +12,7 @@
 - [分析报告](analysis-and-reports.md)：dry-run、manifest、质量指标和自动报告。
 - [公开实测快照](readme-benchmarks.md)：README 使用的跨架构质量、体积和 QEMU 结果。
 - [测试](testing.md)：单元测试、QEMU、大 ELF、差异度和发布门禁。
+- [文档网站发布](site-publishing.md)：在独立 `gh-pages` 分支自动部署 MkDocs 网站。
 
 ## 设计文档
 
@@ -25,10 +26,10 @@
 
 ## 项目治理
 
-- [更新日志](../../CHANGELOG.md)
-- [贡献指南](../../CONTRIBUTING.zh-CN.md)
-- [安全政策](../../SECURITY.zh-CN.md)
-- [GPL-3.0-only 许可证](../../LICENSE)
+- [更新日志](https://github.com/TephrocactusMYC/CactiVM/blob/master/CHANGELOG.md)
+- [贡献指南](https://github.com/TephrocactusMYC/CactiVM/blob/master/CONTRIBUTING.zh-CN.md)
+- [安全政策](https://github.com/TephrocactusMYC/CactiVM/blob/master/SECURITY.zh-CN.md)
+- [GPL-3.0-only 许可证](https://github.com/TephrocactusMYC/CactiVM/blob/master/LICENSE)
 
 ```text
 src/{arm64,riscv64}  ISA 解码和提升

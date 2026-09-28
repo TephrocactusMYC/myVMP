@@ -2,7 +2,8 @@
 set -eu
 
 tool="${MYVMP_TOOL:-build/myvmp}"
-tmp="$(mktemp)"
+mkdir -p build/tmp
+tmp="$(mktemp build/tmp/error-contract.XXXXXX)"
 trap 'rm -f "$tmp"' EXIT
 
 if "$tool" protect /definitely/missing.elf missing "$tmp" 1 > /dev/null 2> "$tmp"; then

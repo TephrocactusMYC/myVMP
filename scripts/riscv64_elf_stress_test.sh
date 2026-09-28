@@ -2,8 +2,12 @@
 set -euo pipefail
 
 repo_dir=$(cd "$(dirname "$0")/.." && pwd)
-work_dir=$(mktemp -d)
-trap 'rm -rf "$work_dir"' EXIT
+cd "$repo_dir"
+mkdir -p build/tmp
+work_dir=$(mktemp -d build/tmp/rv64-stress.XXXXXX)
+trap 'rm -r "$work_dir"' EXIT
+riscv64_libc=$(riscv64-linux-gnu-gcc -print-file-name=libc.so.6)
+riscv64_sysroot=${riscv64_libc%/lib/libc.so.6}
 
 source_file="$repo_dir/tests/fixtures/rv64_relocation_stress.c"
 driver_file="$repo_dir/tests/fixtures/rv64_relocation_stress_driver.c"
@@ -15,10 +19,10 @@ run_case() {
     local protected="$work_dir/$name.protected"
     riscv64-linux-gnu-gcc -O2 -march=rv64gc -mabi=lp64d "$@" \
         "$source_file" "$driver_file" -o "$original"
-    qemu-riscv64 -L /usr/riscv64-linux-gnu "$original" > "$work_dir/$name.expected"
+    qemu-riscv64 -L "$riscv64_sysroot" "$original" > "$work_dir/$name.expected"
     "$repo_dir/build/myvmp" protect "$original" rv64_relocation_target "$protected" \
         324508639 --multi-vm 610839776
-    qemu-riscv64 -L /usr/riscv64-linux-gnu "$protected" > "$work_dir/$name.actual"
+    qemu-riscv64 -L "$riscv64_sysroot" "$protected" > "$work_dir/$name.actual"
     cmp "$work_dir/$name.expected" "$work_dir/$name.actual"
     readelf -lW "$protected" | grep -q 'LOAD.*R E'
     local before after
@@ -40,9 +44,9 @@ riscv64-linux-gnu-gcc -O2 -march=rv64gc -mabi=lp64d "$driver_file" \
     -L"$work_dir/shared-original" -lstress -o "$work_dir/shared-driver"
 "$repo_dir/build/myvmp" protect "$work_dir/shared-original/libstress.so" \
     rv64_relocation_target "$work_dir/shared-protected/libstress.so" 270544960 --multi-vm 1432778632
-QEMU_LD_PREFIX=/usr/riscv64-linux-gnu LD_LIBRARY_PATH="$work_dir/shared-original" \
+QEMU_LD_PREFIX="$riscv64_sysroot" LD_LIBRARY_PATH="$work_dir/shared-original" \
     qemu-riscv64 "$work_dir/shared-driver" > "$work_dir/shared.expected"
-QEMU_LD_PREFIX=/usr/riscv64-linux-gnu LD_LIBRARY_PATH="$work_dir/shared-protected" \
+QEMU_LD_PREFIX="$riscv64_sysroot" LD_LIBRARY_PATH="$work_dir/shared-protected" \
     qemu-riscv64 "$work_dir/shared-driver" > "$work_dir/shared.actual"
 cmp "$work_dir/shared.expected" "$work_dir/shared.actual"
 readelf -lW "$work_dir/shared-protected/libstress.so" | grep -q 'LOAD.*R E'
@@ -66,10 +70,10 @@ riscv64-linux-gnu-objdump -d "$work_dir/far-protected" | \
 riscv64-linux-gnu-gcc -O2 -march=rv64gc -mabi=lp64d -fPIE -pie \
     "$repo_dir/tests/fixtures/rv64_corpus.c" "$repo_dir/tests/fixtures/rv64_corpus_driver.c" \
     -o "$work_dir/batch-original"
-qemu-riscv64 -L /usr/riscv64-linux-gnu "$work_dir/batch-original" > "$work_dir/batch.expected"
+qemu-riscv64 -L "$riscv64_sysroot" "$work_dir/batch-original" > "$work_dir/batch.expected"
 "$repo_dir/build/myvmp" protect-many "$work_dir/batch-original" "$work_dir/batch-protected" \
     305419896 rv64_loop rv64_global_access rv64_switch
-qemu-riscv64 -L /usr/riscv64-linux-gnu "$work_dir/batch-protected" > "$work_dir/batch.actual"
+qemu-riscv64 -L "$riscv64_sysroot" "$work_dir/batch-protected" > "$work_dir/batch.actual"
 cmp "$work_dir/batch.expected" "$work_dir/batch.actual"
 python3 -m json.tool "$work_dir/batch-protected.myvmp.batch.json" >/dev/null
 grep -q '"function_count": 3' "$work_dir/batch-protected.myvmp.batch.json"

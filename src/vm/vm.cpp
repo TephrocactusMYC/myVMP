@@ -6,8 +6,10 @@
 #include <cmath>
 #include <sstream>
 #include <limits>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 
 namespace myvmp::vm {
 namespace {
@@ -269,7 +271,16 @@ Result Interpreter::execute(const bytecode::Image& image) {
 }
 
 Result Interpreter::execute(const SiblingVmImage& image) {
-    return execute(normalize_sibling_image(image, bytecode::fixed_profile()));
+    const auto* previous_context = sibling_context_;
+    sibling_context_ = &image;
+    try {
+        auto result = execute(normalize_sibling_image(image, bytecode::fixed_profile()));
+        sibling_context_ = previous_context;
+        return result;
+    } catch (...) {
+        sibling_context_ = previous_context;
+        throw;
+    }
 }
 
 Result Interpreter::execute(const bytecode::Image& image, const std::array<std::uint64_t, 32>& initial_registers) {
@@ -319,7 +330,12 @@ Result Interpreter::execute(const bytecode::Image& image,
         }
     }
     Result result{};
-    std::vector<std::size_t> vm_call_stack;
+    struct VmCallFrame {
+        std::size_t return_pc{};
+        std::optional<std::uint32_t> continuation_block_id;
+    };
+    std::vector<VmCallFrame> vm_call_stack;
+    std::optional<std::uint32_t> pending_return_block_id;
     const auto resolve_target = [&](std::uint32_t target) {
         if (image.branch_targets_are_offsets) {
             if (!std::binary_search(instruction_offsets.begin(), instruction_offsets.end(), target)) {
@@ -331,7 +347,142 @@ Result Interpreter::execute(const bytecode::Image& image,
         return instruction_offsets[target];
     };
 
+    const auto* sibling = sibling_context_;
+    std::unordered_map<std::size_t, std::size_t> block_index_by_offset;
+    std::unordered_map<std::uint32_t, EncodedArchitecturalState> profile_states;
+    std::optional<std::uint32_t> active_profile;
+    std::optional<std::uint32_t> active_block_id;
+    std::optional<StateRepresentation> active_representation;
+    EncodedArchitecturalState active_encoded_state{};
+    if (sibling != nullptr) {
+        for (std::size_t index = 0; index < sibling->image.blocks.size(); ++index) {
+            const auto& block = sibling->image.blocks[index];
+            if (!block_index_by_offset.emplace(block.payload_offset, index).second) {
+                throw std::runtime_error("sibling VM contains duplicate block entry offsets");
+            }
+        }
+    }
+
+    const auto representation_for = [&](std::uint32_t profile_id) -> const StateRepresentation& {
+        if (profile_id == sibling->partition.primary_profile_id) {
+            return sibling->primary_state_representation;
+        }
+        if (profile_id == sibling->partition.secondary_profile_id) {
+            return sibling->secondary_state_representation;
+        }
+        throw std::runtime_error("sibling VM block has no state representation");
+    };
+    const auto capture_architectural_state = [&] {
+        ArchitecturalState state;
+        state.gpr = regs_;
+        state.fp = fp_regs_;
+        state.vectors = vector_regs_;
+        state.flags = flags_;
+        state.sp = regs_[ir::kStackPointerRegister];
+        return state;
+    };
+    const auto restore_architectural_state = [&](const ArchitecturalState& state) {
+        regs_ = state.gpr;
+        regs_[ir::kStackPointerRegister] = state.sp;
+        fp_regs_ = state.fp;
+        vector_regs_ = state.vectors;
+        flags_ = state.flags;
+    };
+
     while (pc < bytes.size()) {
+        if (sibling != nullptr) {
+            const auto block_entry = block_index_by_offset.find(pc);
+            if (block_entry != block_index_by_offset.end()) {
+                const auto& block = sibling->image.blocks[block_entry->second];
+                const auto destination_profile = sibling->block_profile_ids[block_entry->second];
+                const auto& destination_representation = representation_for(destination_profile);
+                if (!active_profile.has_value()) {
+                    active_profile = destination_profile;
+                    active_block_id = block.id;
+                    active_representation = destination_representation;
+                    active_encoded_state = encode_state(capture_architectural_state(),
+                                                        *active_representation);
+                    profile_states[destination_profile] = active_encoded_state;
+                } else if (*active_profile != destination_profile) {
+                    if (!active_block_id.has_value() || !active_representation.has_value()) {
+                        throw std::runtime_error("sibling VM profile transition has no source state");
+                    }
+                    const auto bridge = std::find_if(
+                        sibling->partition.bridges.begin(), sibling->partition.bridges.end(),
+                        [&](const VmBridge& candidate) {
+                            return candidate.continuation_block_id == *active_block_id &&
+                                   candidate.destination_block_id == block.id &&
+                                   candidate.source_profile_id == *active_profile &&
+                                   candidate.destination_profile_id == destination_profile;
+                        });
+                    const bool returning_to_callsite = pending_return_block_id == block.id;
+                    if (bridge == sibling->partition.bridges.end() && !returning_to_callsite) {
+                        throw std::runtime_error("sibling VM profile transition is missing its bridge");
+                    }
+                    auto destination_state = profile_states.find(destination_profile);
+                    if (destination_state == profile_states.end()) {
+                        destination_state = profile_states.emplace(
+                            destination_profile,
+                            encode_state(ArchitecturalState{}, destination_representation)).first;
+                    }
+                    LiveStateMask live;
+                    // Interprocedural liveness is not represented by the callee CFG.
+                    // Keep caller state intact across every profile edge in an active call.
+                    if (!vm_call_stack.empty()) {
+                        live.gpr = (std::uint64_t{1} << ir::kVirtualRegisterCount) - 1u;
+                        live.fp = 0xffffffffu;
+                        live.vector = 0xffffffffu;
+                        live.flags = 0x0f;
+                        live.sp = true;
+                    } else if (returning_to_callsite && bridge == sibling->partition.bridges.end()) {
+                        if (block.id >= sibling->block_liveness.size()) {
+                            throw std::runtime_error("sibling VM return destination has no liveness metadata");
+                        }
+                        const auto& liveness = sibling->block_liveness[block.id];
+                        for (std::size_t reg = 0; reg < 31; ++reg) {
+                            if (liveness.gpr_live_in.test(reg)) live.gpr |= std::uint64_t{1} << reg;
+                        }
+                        for (std::size_t reg = 0; reg < liveness.fp_live_in.size(); ++reg) {
+                            if (liveness.fp_live_in.test(reg)) live.fp |= std::uint32_t{1} << reg;
+                        }
+                        for (std::size_t reg = 0; reg < liveness.vector_live_in.size(); ++reg) {
+                            if (liveness.vector_live_in.test(reg)) live.vector |= std::uint32_t{1} << reg;
+                        }
+                        live.flags = liveness.nzcv_live_in ? 0x0f : 0;
+                        live.sp = liveness.gpr_live_in.test(ir::kStackPointerRegister);
+                        if (live.sp) live.gpr |= std::uint64_t{1} << ir::kStackPointerRegister;
+                    } else {
+                        live.gpr = bridge->live_gpr_mask;
+                        live.fp = bridge->live_fp_mask;
+                        live.vector = bridge->live_vector_mask;
+                        live.flags = bridge->nzcv_policy == StateSyncPolicy::Preserve ? 0 : 0x0f;
+                        live.sp = bridge->sp_policy != StateSyncPolicy::Preserve;
+                        if (bridge->sp_policy == StateSyncPolicy::CopyAll) {
+                            live.gpr |= (std::uint64_t{1} << ir::kStackPointerRegister) - 1u;
+                            live.gpr |= std::uint64_t{1} << ir::kStackPointerRegister;
+                            live.fp = 0xffffffffu;
+                            live.vector = 0xffffffffu;
+                        }
+                    }
+                    active_encoded_state = transform_live_state(
+                        active_encoded_state, *active_representation,
+                        destination_state->second, destination_representation, live);
+                    active_profile = destination_profile;
+                    active_block_id = block.id;
+                    active_representation = destination_representation;
+                    profile_states[destination_profile] = active_encoded_state;
+                    ++result.profile_state_transitions;
+                    pending_return_block_id.reset();
+                } else {
+                    active_block_id = block.id;
+                }
+                if (pending_return_block_id == block.id) pending_return_block_id.reset();
+            } else if (!active_profile.has_value() || !active_representation.has_value()) {
+                throw std::runtime_error("sibling VM payload does not start at an owned block");
+            }
+            restore_architectural_state(decode_state(active_encoded_state,
+                                                       *active_representation));
+        }
         regs_[ir::kZeroRegister] = 0;
         const auto physical_opcode = read_u8(bytes, pc);
         bytecode::Opcode opcode{};
@@ -1403,8 +1554,30 @@ Result Interpreter::execute(const bytecode::Image& image,
             throw std::runtime_error("host VM cannot execute an AArch64 indirect call gate");
         case bytecode::Opcode::CallVm: {
             const auto target = read_u32(bytes, pc);
-            vm_call_stack.push_back(pc);
-            pc = resolve_target(target);
+            const auto target_pc = resolve_target(target);
+            std::optional<std::uint32_t> continuation_block_id;
+            if (sibling != nullptr) {
+                const auto continuation = block_index_by_offset.find(pc);
+                const auto callee = block_index_by_offset.find(target_pc);
+                if (callee == block_index_by_offset.end()) {
+                    throw std::runtime_error("sibling VM call target is not a block entry");
+                }
+                if (continuation != block_index_by_offset.end()) {
+                    continuation_block_id = sibling->image.blocks[continuation->second].id;
+                } else {
+                    const auto caller = std::find_if(
+                        sibling->image.blocks.begin(), sibling->image.blocks.end(),
+                        [&](const bytecode::BasicBlock& block) { return block.id == active_block_id; });
+                    if (caller == sibling->image.blocks.end() || caller->successors.empty()) {
+                        throw std::runtime_error("sibling VM call has no continuation block");
+                    }
+                    // Shuffled images place a JumpBlock after CallVm; the return PC points
+                    // to that jump, while the last CFG successor is its continuation.
+                    continuation_block_id = caller->successors.back();
+                }
+            }
+            vm_call_stack.push_back({pc, continuation_block_id});
+            pc = target_pc;
             break;
         }
         case bytecode::Opcode::JumpBlock:
@@ -1551,7 +1724,8 @@ Result Interpreter::execute(const bytecode::Image& image,
             const auto src = read_u8(bytes, pc);
             check_reg(src);
             if (!vm_call_stack.empty()) {
-                pc = vm_call_stack.back();
+                pc = vm_call_stack.back().return_pc;
+                pending_return_block_id = vm_call_stack.back().continuation_block_id;
                 vm_call_stack.pop_back();
                 break;
             }
@@ -1562,6 +1736,11 @@ Result Interpreter::execute(const bytecode::Image& image,
             return result;
         default:
             throw std::runtime_error("unknown VM opcode");
+        }
+        if (sibling != nullptr) {
+            active_encoded_state = encode_state(capture_architectural_state(),
+                                                *active_representation);
+            profile_states[*active_profile] = active_encoded_state;
         }
     }
 

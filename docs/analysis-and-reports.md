@@ -28,6 +28,33 @@ compression/encryption, and whole-file similarity is dominated by unprotected co
 blocks, profile owner IDs, successors and bridges. `protect-many` also produces an
 aggregate batch manifest.
 
+For attacker-oriented structural observations, use `scripts/vm_attacker_metrics.py`:
+
+```sh
+python3 scripts/vm_attacker_metrics.py build/protected.elf --output build/attacker.json
+python3 scripts/vm_attacker_metrics.py build/a.elf.myvmp.json build/b.elf.myvmp.json
+python3 scripts/vm_attacker_metrics.py build/protected.elf --trace build/block-trace.json
+```
+
+The report covers visible profile fingerprints, manifest CFG/owner/bridge structure,
+implementation-known operand-format reuse, and optional observed block-trace shape. A trace
+is a JSON block-ID list or `{"block_ids": [...]}`. Sidecar graph values measure disclosed
+metadata; an ELF without a sidecar is marked opaque. These values are structural proxies,
+not recovered semantics or measured devirtualization effort.
+
+For an attacker-side payload/manifest oracle, use `scripts/reference_devirtualizer.py`:
+
+```sh
+python3 scripts/reference_devirtualizer.py build/protected.elf \
+  --payload-file-offset 0x123000 --output build/reference-analysis.json
+```
+
+The file offset is the `payload_offset` printed by `protect`. The tool extracts the
+encrypted VM byte region, hashes it, and associates ciphertext ranges with the disclosed
+block/profile/CFG metadata. It does **not** claim to recover bytecode semantics: native
+runtime block whitening and dynamic operand-window transforms must first be modeled. This
+is a baseline attacker oracle for future differential work, not a devirtualizer.
+
 The JSON emitted by `quality-report --json` has the stable top-level identifier
 `"schema": "myvmp-quality-v1"`. Consumers should check this value before interpreting
 metrics; additive fields may be introduced in a future schema version. The report exits
@@ -80,6 +107,10 @@ intentional; unchanged application code usually dominates that result.
 Thresholds should be calibrated on representative protected symbols. Whole-file size
 ratio and similarity are usually misleading for a small protected function.
 
+The `FunctionVmIsa` API provides an experimental per-function ISA and operand grammar
+descriptor for specialization studies. It is metadata groundwork only; the current native
+encoder and runtime still use the shared bytecode operand contract.
+
 ## Project quality suites
 
 ```sh
@@ -91,8 +122,8 @@ python3 scripts/arm64_liftability_report.py
 python3 scripts/riscv64_liftability_report.py
 ```
 
-The Makefile exposes stable wrappers for these scripts. Prefer the Make targets in CI
-because they build prerequisites and check generated runtime blobs.
+The Makefile exposes stable wrappers for these scripts. Prefer the Make targets in
+automated release jobs because they build prerequisites and check generated runtime blobs.
 
 ## Recommended release evidence
 

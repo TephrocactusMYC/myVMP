@@ -26,11 +26,23 @@ tests are implemented. The next priorities are intentionally concise.
 
 ## Quality and analysis resistance
 
+- initial CFG dominator, natural-loop and multi-class liveness analysis now drives seeded
+  sibling ownership and live-state bridge metadata; the host sibling interpreter now executes
+  deterministic reversible register/flag/vector/SP representation transforms at live-state
+  boundaries, but native runtime bridge integration remains future work;
+- `scripts/reference_devirtualizer.py` extracts and fingerprints encrypted payload blocks
+  beside disclosed sidecar CFG/profile data, but does not recover semantics. Model runtime
+  whitening/operand transforms next, then measure recovered CFG/IR rather than treating
+  ciphertext or sidecar proxies as protection evidence;
+- integrate the experimental `FunctionVmIsa` descriptor into a real per-function encoder
+  and runtime grammar before claiming function-specific bytecode formats;
+- a bounded, same-basic-block miner now reports frequent side-effect-free scalar sequences;
+  synthesize profile-specific bytecode superoperators only with generated handlers and
+  differential semantic validation;
 - add more independently structured dispatch/handler families with measured signature
   reduction;
 - experiment with selective nested protection only if it materially improves attacker
   workload beyond sibling mode at acceptable cost;
-- add dynamic trace-shape, recovered-CFG and handler-clustering metrics;
 - improve automated report comparison across releases, compilers and seeds.
 
 ## New architectures

@@ -11,6 +11,7 @@ import tempfile
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+TEMP_ROOT = ROOT / "build" / "tmp"
 
 
 def digest(path: pathlib.Path) -> str:
@@ -35,7 +36,8 @@ def build(output: pathlib.Path, epoch: str) -> tuple[str, str]:
 
 
 def main() -> int:
-    with tempfile.TemporaryDirectory(prefix="myvmp-repro-") as temporary:
+    TEMP_ROOT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="myvmp-repro-", dir=TEMP_ROOT) as temporary:
         root = pathlib.Path(temporary)
         first = build(root / "one", "1700000000")
         second = build(root / "two", "1700000000")

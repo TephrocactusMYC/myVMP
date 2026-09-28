@@ -1,0 +1,50 @@
+site_name: myVMP
+site_description: ELF function protection with virtualized obfuscation for ARM32, AArch64, and RV64
+site_url: https://tephrocactusmyc.github.io/CactiVM/
+repo_url: https://github.com/TephrocactusMYC/CactiVM
+repo_name: TephrocactusMYC/CactiVM
+docs_dir: docs
+site_dir: site
+strict: true
+
+theme:
+  name: readthedocs
+  locale: en
+
+nav:
+  - Home: index.md
+  - User Guide:
+      - Usage: usage.md
+      - Build and Platforms: build-and-platforms.md
+      - Analysis and Reports: analysis-and-reports.md
+      - Benchmarks: readme-benchmarks.md
+      - Testing: testing.md
+  - Design:
+      - Architecture: architecture.md
+      - Obfuscation: obfuscation.md
+      - Security Model: security-model.md
+      - Research and References: research.md
+      - Roadmap: roadmap.md
+      - Android Vision: android-vision.md
+  - 中文:
+      - 文档首页: zh-CN/index.md
+      - 使用指南: zh-CN/usage.md
+      - 编译与平台: zh-CN/build-and-platforms.md
+      - 分析报告: zh-CN/analysis-and-reports.md
+      - 实测基准: zh-CN/readme-benchmarks.md
+      - 测试: zh-CN/testing.md
+      - 架构: zh-CN/architecture.md
+      - 混淆设计: zh-CN/obfuscation.md
+      - 安全模型: zh-CN/security-model.md
+      - 调研与参考: zh-CN/research.md
+      - 路线图: zh-CN/roadmap.md
+      - Android 远景: zh-CN/android-vision.md
+  - Project:
+      - Site Publishing: site-publishing.md
+      - 发布文档站: zh-CN/site-publishing.md
+
+validation:
+  links:
+    anchors: warn
+    not_found: warn
+    unrecognized_links: warn

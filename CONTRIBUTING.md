@@ -30,8 +30,9 @@ native runtime handlers, malformed-input behavior and QEMU original/protected co
 Use C++20 and four-space indentation with no tabs or trailing whitespace. Public C++
 headers start with `#pragma once`; text files use UTF-8/LF and end with a newline. Keep
 interfaces small, prefer shared format/validation components, and preserve unrelated
-working-tree changes. CI compiles with GCC and Clang under `-Werror` plus strict format,
-shadow, preprocessor and cast diagnostics.
+working-tree changes. Before submitting C++ changes, run the strict build and relevant tests
+locally. GitHub Actions is reserved for publishing the Markdown documentation site; setup
+and branch requirements are documented in `docs/site-publishing.md`.
 
 ## Pull requests
 

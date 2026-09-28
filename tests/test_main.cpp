@@ -13,6 +13,8 @@
 #include "myvmp/patch/riscv64_trampoline.hpp"
 #include "myvmp/vm/vm.hpp"
 #include "myvmp/vm/multi_vm.hpp"
+#include "myvmp/vm/state_encoding.hpp"
+#include "myvmp/vmisa/superoperator.hpp"
 
 #include <algorithm>
 #include <cstdlib>
@@ -2912,6 +2914,11 @@ void test_sibling_vm_partition_and_bridge_contract() {
     bool rejected = false;
     try { invalid.validate(); } catch (const std::runtime_error&) { rejected = true; }
     require(rejected, "VM bridge must reject transitions beyond its bounded depth");
+    invalid = partition.bridges.front();
+    invalid.live_gpr_mask = std::uint64_t{1} << 40;
+    rejected = false;
+    try { invalid.validate(); } catch (const std::runtime_error&) { rejected = true; }
+    require(rejected, "VM bridge must reject out-of-range live-register bits");
 
     const auto sibling = myvmp::vm::encode_sibling(program, {
         .primary_seed = 0x5101u,
@@ -2921,8 +2928,21 @@ void test_sibling_vm_partition_and_bridge_contract() {
     });
     require(sibling.primary_profile.manifest() != sibling.secondary_profile.manifest(),
             "sibling VM profiles must be independently seeded");
-    require(myvmp::vm::Interpreter{}.execute(sibling).value == 1,
+    const auto sibling_result = myvmp::vm::Interpreter{}.execute(sibling);
+    require(sibling_result.value == 1,
             "host sibling VM execution changed program semantics");
+    require(sibling_result.profile_state_transitions > 0,
+            "host sibling VM must execute a live-state transform on a profile boundary");
+    auto copy_all_sibling = sibling;
+    for (auto& bridge : copy_all_sibling.partition.bridges) {
+        bridge.live_gpr_mask = 0;
+        bridge.live_fp_mask = 0;
+        bridge.live_vector_mask = 0;
+        bridge.sp_policy = myvmp::vm::StateSyncPolicy::CopyAll;
+        bridge.nzcv_policy = myvmp::vm::StateSyncPolicy::CopyAll;
+    }
+    require(myvmp::vm::Interpreter{}.execute(copy_all_sibling).value == 1,
+            "host sibling VM must expand CopyAll bridge policy across state classes");
     const auto normalized = myvmp::vm::normalize_sibling_image(
         sibling, myvmp::bytecode::fixed_profile());
     require(normalized.blocks.size() == sibling.image.blocks.size() &&
@@ -2952,6 +2972,22 @@ void test_sibling_vm_partition_and_bridge_contract() {
     try { invalid_owner.validate(); } catch (const std::runtime_error&) { rejected = true; }
     require(rejected, "sibling VM validation must reject unknown block owners");
 
+    auto invalid_state_profile = sibling;
+    invalid_state_profile.secondary_state_representation.profile_id = 0xffffffffu;
+    rejected = false;
+    try { invalid_state_profile.validate(); } catch (const std::runtime_error&) { rejected = true; }
+    require(rejected, "sibling VM validation must reject mismatched state representation profiles");
+
+    auto invalid_bridge_image = sibling;
+    invalid_bridge_image.partition.bridges.front().live_gpr_mask = std::uint64_t{1} << 40;
+    myvmp::vm::Interpreter reusable_interpreter;
+    rejected = false;
+    try { (void)reusable_interpreter.execute(invalid_bridge_image); }
+    catch (const std::runtime_error&) { rejected = true; }
+    require(rejected, "host sibling interpreter must reject malformed bridge liveness");
+    require(reusable_interpreter.execute(sibling).value == 1,
+            "failed sibling execution must not leave stale profile state in the interpreter");
+
     myvmp::ir::Program single_block;
     single_block.load_imm(0, 1);
     single_block.return_reg(0);
@@ -2962,6 +2998,245 @@ void test_sibling_vm_partition_and_bridge_contract() {
         });
     } catch (const std::invalid_argument&) { rejected = true; }
     require(rejected, "sibling VM mode must fail closed when no cross-profile partition exists");
+}
+
+void test_state_representation_roundtrip_and_live_bridge() {
+    using namespace myvmp::vm;
+    ArchitecturalState source;
+    ArchitecturalState initial_destination;
+    for (std::size_t index = 0; index < source.gpr.size(); ++index) {
+        source.gpr[index] = 0x1020304050607080ull + index;
+        initial_destination.gpr[index] = 0x8877665544332200ull + index;
+    }
+    for (std::size_t index = 0; index < source.fp.size(); ++index) {
+        source.fp[index] = 0xfedcba9876543210ull ^ index;
+        initial_destination.fp[index] = index + 900;
+    }
+    for (std::size_t index = 0; index < source.vectors.size(); ++index) {
+        source.vectors[index].set_lane<std::uint64_t>(0, index + 17);
+        source.vectors[index].set_lane<std::uint64_t>(1, index + 31);
+        initial_destination.vectors[index].set_lane<std::uint64_t>(0, index + 700);
+    }
+    source.flags = {true, false, true, true};
+    initial_destination.flags = {false, true, false, false};
+    source.sp = 0x123456789abcdef0ull;
+    initial_destination.sp = 0x55550000ull;
+
+    const auto source_rep = make_state_representation(101, 0xABCDEF01ull);
+    const auto destination_rep = make_state_representation(202, 0xABCDEF01ull);
+    const auto reproducible_rep = make_state_representation(101, 0xABCDEF01ull);
+    require(source_rep.gpr_slot == reproducible_rep.gpr_slot &&
+                source_rep.fp_slot == reproducible_rep.fp_slot &&
+                source_rep.vector_slot == reproducible_rep.vector_slot &&
+                source_rep.gpr_slot != destination_rep.gpr_slot,
+            "profile state layouts must be reproducible and profile-distinct");
+    const auto encoded_source = encode_state(source, source_rep);
+    const auto decoded = decode_state(encoded_source, source_rep);
+    require(decoded.gpr == source.gpr && decoded.fp == source.fp &&
+                decoded.flags.z == source.flags.z && decoded.flags.n == source.flags.n &&
+                decoded.flags.c == source.flags.c && decoded.flags.v == source.flags.v &&
+                decoded.sp == source.sp,
+            "profile-local state encoding must round-trip scalar architectural state");
+    for (std::size_t index = 0; index < source.vectors.size(); ++index) {
+        require(decoded.vectors[index].bytes() == source.vectors[index].bytes(),
+                "profile-local state encoding must round-trip vector state");
+    }
+
+    LiveStateMask live;
+    live.gpr = (std::uint64_t{1} << 0) | (std::uint64_t{1} << myvmp::ir::kStackPointerRegister);
+    live.fp = std::uint32_t{1} << 3;
+    live.vector = std::uint32_t{1} << 4;
+    live.flags = 0x5;
+    live.sp = true;
+    const auto encoded_destination = encode_state(initial_destination, destination_rep);
+    const auto bridged = decode_state(transform_live_state(
+        encoded_source, source_rep, encoded_destination, destination_rep, live), destination_rep);
+    require(bridged.gpr[0] == source.gpr[0] &&
+                bridged.gpr[myvmp::ir::kStackPointerRegister] ==
+                    source.gpr[myvmp::ir::kStackPointerRegister] &&
+                bridged.gpr[1] == initial_destination.gpr[1] &&
+                bridged.fp[3] == source.fp[3] && bridged.fp[2] == initial_destination.fp[2] &&
+                bridged.vectors[4].bytes() == source.vectors[4].bytes() &&
+                bridged.vectors[5].bytes() == initial_destination.vectors[5].bytes() &&
+                bridged.flags.z == source.flags.z && bridged.flags.n == initial_destination.flags.n &&
+                bridged.flags.c == source.flags.c && bridged.flags.v == initial_destination.flags.v &&
+                bridged.sp == source.sp,
+            "live sibling transform must translate only selected state classes");
+
+    LiveStateMask all_state;
+    all_state.gpr = (std::uint64_t{1} << myvmp::ir::kVirtualRegisterCount) - 1u;
+    all_state.fp = 0xffffffffu;
+    all_state.vector = 0xffffffffu;
+    all_state.flags = 0x0f;
+    all_state.sp = true;
+    const auto all_state_bridged = decode_state(transform_live_state(
+        encoded_source, source_rep, encoded_destination, destination_rep, all_state), destination_rep);
+    require(all_state_bridged.gpr == source.gpr && all_state_bridged.fp == source.fp &&
+                all_state_bridged.flags.z == source.flags.z &&
+                all_state_bridged.flags.n == source.flags.n &&
+                all_state_bridged.flags.c == source.flags.c &&
+                all_state_bridged.flags.v == source.flags.v && all_state_bridged.sp == source.sp,
+            "CopyAll state transform must include every scalar register and architectural flag");
+    for (std::size_t index = 0; index < source.vectors.size(); ++index) {
+        require(all_state_bridged.vectors[index].bytes() == source.vectors[index].bytes(),
+                "CopyAll state transform must include every vector register");
+    }
+
+    auto invalid_live = live;
+    invalid_live.gpr = std::uint64_t{1} << 40;
+    bool rejected = false;
+    try {
+        (void)transform_live_state(encoded_source, source_rep, encoded_destination,
+                                   destination_rep, invalid_live);
+    } catch (const std::invalid_argument&) {
+        rejected = true;
+    }
+    require(rejected, "live-state transform must reject out-of-range mask bits");
+}
+
+void test_sibling_state_transforms_follow_executed_cfg_edges() {
+    myvmp::ir::Program program;
+    program.load_imm(0, 1);
+    program.compare_imm(0, 0);
+    program.branch_if(myvmp::ir::Condition::Eq, 5);
+    program.add_imm(0, 0, 2);
+    program.branch_if(myvmp::ir::Condition::Al, 6);
+    program.add_imm(0, 0, 4);
+    program.return_reg(0);
+
+    constexpr std::array<std::size_t, 3> executed_block_starts{0, 3, 6};
+    bool observed_round_trip = false;
+    for (std::uint32_t seed = 1; seed <= 32; ++seed) {
+        const auto sibling = myvmp::vm::encode_sibling(program, {
+            .primary_seed = 0x71000000u + seed,
+            .secondary_seed = 0x72000000u + seed,
+            .partition_seed = 0x73000000u + seed,
+        });
+        const auto owner_at_instruction = [&](std::size_t instruction) {
+            for (std::size_t index = 0; index < sibling.image.blocks.size(); ++index) {
+                const auto& block = sibling.image.blocks[index];
+                if (instruction >= block.first_ir_instruction &&
+                    instruction < static_cast<std::size_t>(block.first_ir_instruction) +
+                                      block.ir_instruction_count) {
+                    return sibling.block_profile_ids[index];
+                }
+            }
+            throw std::runtime_error("test path instruction has no bytecode block");
+        };
+        std::uint64_t expected_transitions = 0;
+        auto previous_owner = owner_at_instruction(executed_block_starts.front());
+        for (std::size_t index = 1; index < executed_block_starts.size(); ++index) {
+            const auto owner = owner_at_instruction(executed_block_starts[index]);
+            expected_transitions += owner != previous_owner;
+            previous_owner = owner;
+        }
+        const auto result = myvmp::vm::Interpreter{}.execute(sibling);
+        require(result.value == 3,
+                "live-state transforms must preserve branch/fallthrough sibling semantics");
+        require(result.profile_state_transitions == expected_transitions,
+                "host sibling VM must transform state exactly on executed cross-profile edges");
+        observed_round_trip |= expected_transitions >= 2;
+    }
+    require(observed_round_trip,
+            "seeded sibling partitions must exercise an A-to-B-to-A state-transform path");
+}
+
+void test_sibling_vm_transforms_dynamic_call_return_edges() {
+    myvmp::ir::Program program;
+    program.load_imm(0, 5);
+    program.load_imm(1, 20);
+    program.call_vm(6);
+    program.add_imm(0, 0, 2);
+    program.add_reg_shifted(0, 0, 1, myvmp::ir::ShiftKind::Lsl, 0);
+    program.return_reg(0);
+    program.compare_imm(0, 0);
+    program.branch_if(myvmp::ir::Condition::Eq, 10);
+    program.add_imm(0, 0, 7);
+    program.return_reg(0);
+    program.add_imm(0, 0, 100);
+    program.return_reg(0);
+
+    bool observed_cross_profile_call = false;
+    bool observed_cross_profile_return = false;
+    for (std::uint32_t seed = 1; seed <= 64; ++seed) {
+        const auto sibling = myvmp::vm::encode_sibling(program, {
+            .primary_seed = 0x81000000u + seed,
+            .secondary_seed = 0x82000000u + seed,
+            .partition_seed = 0x83000000u + seed,
+        });
+        const auto owner_at_instruction = [&](std::size_t instruction) {
+            for (std::size_t index = 0; index < sibling.image.blocks.size(); ++index) {
+                const auto& block = sibling.image.blocks[index];
+                if (instruction >= block.first_ir_instruction &&
+                    instruction < static_cast<std::size_t>(block.first_ir_instruction) +
+                                      block.ir_instruction_count) {
+                    return sibling.block_profile_ids[index];
+                }
+            }
+            throw std::runtime_error("call test instruction has no bytecode block");
+        };
+        const auto caller = owner_at_instruction(0);
+        const auto continuation = owner_at_instruction(3);
+        const auto callee = owner_at_instruction(6);
+        const auto callee_return = owner_at_instruction(8);
+        observed_cross_profile_call |= caller != callee;
+        observed_cross_profile_return |= callee_return != continuation;
+        std::uint64_t expected_transitions = 0;
+        expected_transitions += caller != callee;
+        expected_transitions += callee != callee_return;
+        expected_transitions += callee_return != continuation;
+        const auto result = myvmp::vm::Interpreter{}.execute(sibling);
+        require(result.value == 34,
+                "sibling VM call must preserve caller state used only after return");
+        require(result.profile_state_transitions == expected_transitions,
+                "profile state transitions must include executed call and return edges");
+    }
+    require(observed_cross_profile_call,
+            "seeded sibling partitions must exercise a cross-profile VM call");
+    require(observed_cross_profile_return,
+            "seeded sibling partitions must exercise a cross-profile VM return");
+}
+
+void test_superoperator_mining_is_bounded_and_block_local() {
+    myvmp::ir::Program program;
+    program.load_imm(0, 1);
+    program.add_imm(0, 0, 2);
+    program.load_imm(1, 3);
+    program.add_imm(1, 1, 4);
+    program.return_reg(0);
+    const auto cfg = myvmp::ir::CFGAnalysis::build(program);
+    const auto candidates = myvmp::vmisa::mine_superoperators(program, cfg, {
+        .profile_seed = 0x12345678ull,
+        .min_length = 2,
+        .max_length = 2,
+        .max_candidates = 8,
+        .max_occurrences_per_candidate = 8,
+        .min_frequency = 2,
+    });
+    require(!candidates.empty(), "repeated same-block scalar sequences should be mined");
+    for (const auto& candidate : candidates) {
+        require(myvmp::vmisa::validate_superoperator_candidate(program, cfg, candidate, 2),
+                "mined superoperator candidate must validate every bounded occurrence");
+        require(candidate.opcodes.size() <= 2 && candidate.occurrences.size() <= 8,
+                "superoperator miner must respect sequence and occurrence bounds");
+    }
+
+    myvmp::ir::Program separated;
+    separated.load_imm(0, 1);
+    separated.branch_if(myvmp::ir::Condition::Eq, 3);
+    separated.add_imm(0, 0, 2);
+    separated.return_reg(0);
+    const auto separated_cfg = myvmp::ir::CFGAnalysis::build(separated);
+    const auto separated_candidates = myvmp::vmisa::mine_superoperators(
+        separated, separated_cfg, {.profile_seed = 1, .min_frequency = 1});
+    require(separated_candidates.empty(),
+            "superoperator miner must not fuse across control-flow boundaries");
+    require(std::all_of(separated_candidates.begin(), separated_candidates.end(),
+                        [&](const auto& candidate) {
+                            return myvmp::vmisa::validate_superoperator_candidate(
+                                separated, separated_cfg, candidate);
+                        }),
+            "superoperator occurrences may not cross basic-block boundaries");
 }
 
 void test_riscv64_decoder_lifter_vertical_slice() {
@@ -3143,6 +3418,10 @@ int main(int argc, char** argv) {
         test_aarch64_conditional_fp();
         test_aarch64_exclusive_pairs();
         test_sibling_vm_partition_and_bridge_contract();
+        test_state_representation_roundtrip_and_live_bridge();
+        test_sibling_state_transforms_follow_executed_cfg_edges();
+        test_sibling_vm_transforms_dynamic_call_return_edges();
+        test_superoperator_mining_is_bounded_and_block_local();
         test_riscv64_decoder_lifter_vertical_slice();
         require(argc >= 1, "test executable path missing");
         test_elf_parser_on_self(argv[0]);

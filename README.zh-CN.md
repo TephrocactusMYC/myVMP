@@ -124,26 +124,30 @@ riscv64-linux-gnu-gcc  -O2 -g -fno-inline -fno-stack-protector app.c -o app.rv64
 # ARM32/A32
 ./build/myvmp inspect-elf app.arm32 protected_calculation
 ./build/myvmp protect app.arm32 protected_calculation app.protected.arm32 1001
-qemu-arm -L /usr/arm-linux-gnueabihf ./app.protected.arm32
+arm32_sysroot=$(dirname "$(dirname "$(arm-linux-gnueabihf-gcc -print-file-name=libc.so.6)")")
+qemu-arm -L "$arm32_sysroot" ./app.protected.arm32
 
 # AArch64
 ./build/myvmp inspect-elf app.arm64 protected_calculation
 ./build/myvmp protect-dry-run app.arm64 protected_calculation 1001
 ./build/myvmp protect app.arm64 protected_calculation app.protected.arm64 1001
-qemu-aarch64 -L /usr/aarch64-linux-gnu ./app.protected.arm64
+aarch64_sysroot=$(dirname "$(dirname "$(aarch64-linux-gnu-gcc -print-file-name=libc.so.6)")")
+qemu-aarch64 -L "$aarch64_sysroot" ./app.protected.arm64
 
 # RV64
 ./build/myvmp inspect-elf app.rv64 protected_calculation
 ./build/myvmp protect-dry-run app.rv64 protected_calculation 1001
 ./build/myvmp protect app.rv64 protected_calculation app.protected.rv64 1001
-qemu-riscv64 -L /usr/riscv64-linux-gnu ./app.protected.rv64
+riscv64_sysroot=$(dirname "$(dirname "$(riscv64-linux-gnu-gcc -print-file-name=libc.so.6)")")
+qemu-riscv64 -L "$riscv64_sysroot" ./app.protected.rv64
 ```
 
 输出旁会生成 `.myvmp.json` manifest。发布前必须比较完整程序行为：
 
 ```sh
-qemu-aarch64 -L /usr/aarch64-linux-gnu ./app.arm64 > before.txt
-qemu-aarch64 -L /usr/aarch64-linux-gnu ./app.protected.arm64 > after.txt
+aarch64_sysroot=$(dirname "$(dirname "$(aarch64-linux-gnu-gcc -print-file-name=libc.so.6)")")
+qemu-aarch64 -L "$aarch64_sysroot" ./app.arm64 > before.txt
+qemu-aarch64 -L "$aarch64_sysroot" ./app.protected.arm64 > after.txt
 cmp before.txt after.txt
 ```
 

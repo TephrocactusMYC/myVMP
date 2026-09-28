@@ -18,6 +18,7 @@ TOOL = ROOT / "build" / "myvmp"
 INPUT = ROOT / "build" / "fixtures" / "generated" / "gen_branch_ops.aarch64"
 SYMBOL = "candidate_branch_ops"
 REPORT = ROOT / "build" / "logs" / "quality" / "multi-vm-quality.json"
+TEMP_ROOT = ROOT / "build" / "tmp"
 
 
 def distance(lhs: bytes, rhs: bytes) -> float:
@@ -56,7 +57,8 @@ def main() -> int:
     size_ratios: list[float] = []
     runtime_ratios: list[float] = []
     baseline_seconds = statistics.median(sample[1] for sample in baseline_samples)
-    with tempfile.TemporaryDirectory(prefix="myvmp-multi-quality-") as directory:
+    TEMP_ROOT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="myvmp-multi-quality-", dir=TEMP_ROOT) as directory:
         temp = Path(directory)
         for index in range(count):
             primary, secondary = 3001 + index, 7001 + index

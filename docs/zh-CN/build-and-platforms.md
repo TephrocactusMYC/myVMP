@@ -7,7 +7,7 @@
 | 组件 | 状态 | 说明 |
 |---|---|---|
 | Linux x86-64 host | 主要 | 本机编译 C++ 工具，目标测试使用交叉工具链 |
-| Linux AArch64/RV64 host | 预期可用 | 需要本机编译器，目前发布回归主要为 cross-host |
+| Linux AArch64/RV64 host | 预期可用 | 需要本机编译器；编译和目标测试由本地发布环境运行 |
 | Windows host | 通过 WSL2/container 支持 | 不支持原生 Win32 build |
 | macOS host | 通过 container/Linux VM 支持 | 不支持原生 Mach-O host build |
 | AArch64 ELF64 小端 | 主要目标 | executable、PIE、shared object，广泛 scalar 范围及文档所列固定 128 位 Advanced SIMD 子集 |
@@ -63,8 +63,8 @@ make generate-arm32-runtime check-arm32-runtime
 
 ## Windows/WSL2
 
-Windows 推荐安装 Ubuntu 24.04 WSL2，并把仓库 clone 到 WSL 文件系统（例如
-`~/src/myVMP`，避免 `/mnt/c` 的 I/O 开销）：
+Windows 推荐安装 Ubuntu 24.04 WSL2，并把仓库 clone 到 WSL Linux 文件系统，而不是 Windows
+挂载盘，以减少 I/O 开销：
 
 ```powershell
 wsl --install -d Ubuntu-24.04

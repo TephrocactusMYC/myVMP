@@ -2,16 +2,19 @@
 set -eu
 
 root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
-outputs=""
-trap 'rm -f $outputs' EXIT
+cd "$root"
+mkdir -p build/tmp
+tmpdir=$(mktemp -d build/tmp/arm64-vm.XXXXXX)
+trap 'rm -r "$tmpdir"' EXIT
+aarch64_libc=$(aarch64-linux-gnu-gcc -print-file-name=libc.so.6)
+aarch64_sysroot=${aarch64_libc%/lib/libc.so.6}
 
 protect_and_compare() {
     input=$1
     symbol=$2
     name=$3
     seed=${4:-0}
-    output=$(mktemp /tmp/myvmp-aarch64-vm-protected.XXXXXX)
-    outputs="$outputs $output $output.myvmp.json"
+    output="$tmpdir/$name.protected"
     before=$(qemu-aarch64 "$input")
     "$root/build/myvmp" protect "$input" "$symbol" "$output" "$seed" \
         >"$root/build/logs/$name.vm-protect.log"
@@ -32,8 +35,7 @@ protect_multi_and_compare() {
     name=$3
     primary_seed=$4
     secondary_seed=$5
-    output=$(mktemp /tmp/myvmp-aarch64-multi-vm-protected.XXXXXX)
-    outputs="$outputs $output $output.myvmp.json"
+    output="$tmpdir/$name.multi-protected"
     before=$(qemu-aarch64 "$input")
     "$root/build/myvmp" protect "$input" "$symbol" "$output" "$primary_seed" \
         --multi-vm "$secondary_seed" >"$root/build/logs/$name.vm-protect.log"
@@ -63,8 +65,7 @@ protect_and_compare "$root/build/fixtures/generated/gen_call_ops.aarch64" candid
 protect_and_compare "$root/build/fixtures/generated/gen_indirect_call_ops.aarch64" candidate_indirect_call_ops gen_indirect_call_ops 12
 protect_and_compare "$root/build/fixtures/generated/gen_global_ops.aarch64" candidate_global_ops gen_global_ops 15
 
-fp_input=$(mktemp /tmp/myvmp-aarch64-fp.XXXXXX)
-outputs="$outputs $fp_input"
+fp_input="$tmpdir/fp-input"
 aarch64-linux-gnu-gcc -std=c11 -O2 -static -fno-inline -fno-stack-protector -fno-math-errno \
     "$root/fixtures/aarch64_fp_probe.c" -o "$fp_input"
 protect_and_compare "$fp_input" candidate_fp_probe aarch64_fp_probe 18
@@ -72,16 +73,14 @@ protect_and_compare "$fp_input" candidate_fp32_probe aarch64_fp32_probe 21
 protect_and_compare "$fp_input" candidate_fp_extended aarch64_fp_extended 24
 protect_and_compare "$fp_input" candidate_fp_convert_minmax aarch64_fp_convert_minmax 25
 
-fp_conditional_input=$(mktemp /tmp/myvmp-aarch64-fp-conditional.XXXXXX)
-outputs="$outputs $fp_conditional_input"
+fp_conditional_input="$tmpdir/fp-conditional-input"
 aarch64-linux-gnu-gcc -static -fno-stack-protector \
     "$root/fixtures/aarch64_fp_conditional_driver.c" \
     "$root/fixtures/aarch64_fp_conditional.S" -o "$fp_conditional_input"
 protect_and_compare "$fp_conditional_input" candidate_fp_conditional aarch64_fp_conditional 26
 protect_and_compare "$fp_conditional_input" candidate_fp_conditional_nv aarch64_fp_conditional_nv 27
 
-atomic_pair_input=$(mktemp /tmp/myvmp-aarch64-atomic-pair.XXXXXX)
-outputs="$outputs $atomic_pair_input"
+atomic_pair_input="$tmpdir/atomic-pair-input"
 aarch64-linux-gnu-gcc -std=c11 -static -fno-stack-protector \
     "$root/fixtures/aarch64_atomic_pair_driver.c" \
     "$root/fixtures/aarch64_atomic_pair.S" -o "$atomic_pair_input"
@@ -95,73 +94,68 @@ protect_multi_and_compare "$root/build/fixtures/generated/gen_branch_ops.aarch64
 protect_multi_and_compare "$root/build/fixtures/generated/gen_internal_call_ops.aarch64" candidate_internal_call_ops multi_internal_call 1003 2004
 protect_multi_and_compare "$root/build/fixtures/generated/gen_memory_ops.aarch64" candidate_memory_ops multi_memory 1005 2006
 
-pie_input=$(mktemp /tmp/myvmp-aarch64-call-pie.XXXXXX)
-pie_output=$(mktemp /tmp/myvmp-aarch64-call-protected-pie.XXXXXX)
-outputs="$outputs $pie_input $pie_output"
+pie_input="$tmpdir/call-pie-input"
+pie_output="$tmpdir/call-pie-protected"
 aarch64-linux-gnu-gcc -std=c11 -O2 -fno-inline -fno-stack-protector \
     "$root/fixtures/generated/gen_call_ops.c" -o "$pie_input"
-pie_before=$(qemu-aarch64 -L /usr/aarch64-linux-gnu "$pie_input")
+pie_before=$(qemu-aarch64 -L "$aarch64_sysroot" "$pie_input")
 "$root/build/myvmp" protect "$pie_input" candidate_call_ops "$pie_output" 11 \
     >"$root/build/logs/gen_call_ops_pie.vm-protect.log"
-pie_after=$(qemu-aarch64 -L /usr/aarch64-linux-gnu "$pie_output")
+pie_after=$(qemu-aarch64 -L "$aarch64_sysroot" "$pie_output")
 test "$pie_before" = "$pie_after"
 grep -q '^protected=true$' "$root/build/logs/gen_call_ops_pie.vm-protect.log"
 echo "ARM64 VM protected PIE call gate (seed=11): $pie_after"
 
-pie_indirect_input=$(mktemp /tmp/myvmp-aarch64-indirect-pie.XXXXXX)
-pie_indirect_output=$(mktemp /tmp/myvmp-aarch64-indirect-protected-pie.XXXXXX)
-outputs="$outputs $pie_indirect_input $pie_indirect_output"
+pie_indirect_input="$tmpdir/indirect-pie-input"
+pie_indirect_output="$tmpdir/indirect-pie-protected"
 aarch64-linux-gnu-gcc -std=c11 -O2 -fno-inline -fno-stack-protector \
     "$root/fixtures/generated/gen_indirect_call_ops.c" -o "$pie_indirect_input"
-pie_indirect_before=$(qemu-aarch64 -L /usr/aarch64-linux-gnu "$pie_indirect_input")
+pie_indirect_before=$(qemu-aarch64 -L "$aarch64_sysroot" "$pie_indirect_input")
 "$root/build/myvmp" protect "$pie_indirect_input" candidate_indirect_call_ops \
     "$pie_indirect_output" 13 >"$root/build/logs/gen_indirect_call_ops_pie.vm-protect.log"
-pie_indirect_after=$(qemu-aarch64 -L /usr/aarch64-linux-gnu "$pie_indirect_output")
+pie_indirect_after=$(qemu-aarch64 -L "$aarch64_sysroot" "$pie_indirect_output")
 test "$pie_indirect_before" = "$pie_indirect_after"
 grep -q '^protected=true$' "$root/build/logs/gen_indirect_call_ops_pie.vm-protect.log"
 echo "ARM64 VM protected PIE indirect call gate (seed=13): $pie_indirect_after"
 
-shared_input=$(mktemp /tmp/myvmp-aarch64-call-shared.XXXXXX.so)
-shared_output=$(mktemp /tmp/myvmp-aarch64-call-protected-shared.XXXXXX.so)
-shared_driver=$(mktemp /tmp/myvmp-aarch64-shared-driver.XXXXXX)
-outputs="$outputs $shared_input $shared_output $shared_driver"
+shared_input="$tmpdir/call-shared-input.so"
+shared_output="$tmpdir/call-shared-protected.so"
+shared_driver="$tmpdir/shared-driver"
 aarch64-linux-gnu-gcc -std=c11 -O2 -fPIC -fno-inline -fno-stack-protector -shared \
     "$root/fixtures/generated/gen_call_ops.c" -o "$shared_input"
 aarch64-linux-gnu-gcc -std=c11 -O2 "$root/fixtures/aarch64_shared_driver.c" \
     -ldl -o "$shared_driver"
-shared_before=$(qemu-aarch64 -L /usr/aarch64-linux-gnu "$shared_driver" "$shared_input")
+shared_before=$(qemu-aarch64 -L "$aarch64_sysroot" "$shared_driver" "$shared_input")
 "$root/build/myvmp" protect "$shared_input" candidate_call_ops "$shared_output" 14 \
     >"$root/build/logs/gen_call_ops_shared.vm-protect.log"
-shared_after=$(qemu-aarch64 -L /usr/aarch64-linux-gnu "$shared_driver" "$shared_output")
+shared_after=$(qemu-aarch64 -L "$aarch64_sysroot" "$shared_driver" "$shared_output")
 test "$shared_before" = "$shared_after"
 grep -q '^protected=true$' "$root/build/logs/gen_call_ops_shared.vm-protect.log"
 echo "ARM64 VM protected shared object call gate (seed=14): $shared_after"
 
-global_pie_input=$(mktemp /tmp/myvmp-aarch64-global-pie.XXXXXX)
-global_pie_output=$(mktemp /tmp/myvmp-aarch64-global-protected-pie.XXXXXX)
-outputs="$outputs $global_pie_input $global_pie_output"
+global_pie_input="$tmpdir/global-pie-input"
+global_pie_output="$tmpdir/global-pie-protected"
 aarch64-linux-gnu-gcc -std=c11 -O2 -fno-inline -fno-stack-protector \
     "$root/fixtures/generated/gen_global_ops.c" -o "$global_pie_input"
-global_pie_before=$(qemu-aarch64 -L /usr/aarch64-linux-gnu "$global_pie_input")
+global_pie_before=$(qemu-aarch64 -L "$aarch64_sysroot" "$global_pie_input")
 "$root/build/myvmp" protect "$global_pie_input" candidate_global_ops \
     "$global_pie_output" 16 >"$root/build/logs/gen_global_ops_pie.vm-protect.log"
-global_pie_after=$(qemu-aarch64 -L /usr/aarch64-linux-gnu "$global_pie_output")
+global_pie_after=$(qemu-aarch64 -L "$aarch64_sysroot" "$global_pie_output")
 test "$global_pie_before" = "$global_pie_after"
 echo "ARM64 VM protected PIE global access (seed=16): $global_pie_after"
 
-global_shared_input=$(mktemp /tmp/myvmp-aarch64-global-shared.XXXXXX.so)
-global_shared_output=$(mktemp /tmp/myvmp-aarch64-global-protected-shared.XXXXXX.so)
-global_shared_driver=$(mktemp /tmp/myvmp-aarch64-global-driver.XXXXXX)
-outputs="$outputs $global_shared_input $global_shared_output $global_shared_driver"
+global_shared_input="$tmpdir/global-shared-input.so"
+global_shared_output="$tmpdir/global-shared-protected.so"
+global_shared_driver="$tmpdir/global-shared-driver"
 aarch64-linux-gnu-gcc -std=c11 -O2 -fPIC -fno-inline -fno-stack-protector -shared \
     "$root/fixtures/generated/gen_global_ops.c" -o "$global_shared_input"
 aarch64-linux-gnu-gcc -std=c11 -O2 "$root/fixtures/aarch64_global_shared_driver.c" \
     -ldl -o "$global_shared_driver"
-global_shared_before=$(qemu-aarch64 -L /usr/aarch64-linux-gnu \
+global_shared_before=$(qemu-aarch64 -L "$aarch64_sysroot" \
     "$global_shared_driver" "$global_shared_input")
 "$root/build/myvmp" protect "$global_shared_input" candidate_global_ops \
     "$global_shared_output" 17 >"$root/build/logs/gen_global_ops_shared.vm-protect.log"
-global_shared_after=$(qemu-aarch64 -L /usr/aarch64-linux-gnu \
+global_shared_after=$(qemu-aarch64 -L "$aarch64_sysroot" \
     "$global_shared_driver" "$global_shared_output")
 test "$global_shared_before" = "$global_shared_after"
 echo "ARM64 VM protected shared-object global access (seed=17): $global_shared_after"

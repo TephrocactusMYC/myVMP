@@ -50,14 +50,18 @@ flowchart LR
     B2 -->|bridge| A3
 ```
 
-sibling 模式把物理 CFG block 分配给两个独立 profile。跨 owner 边必须有显式 `VmBridge`，
+sibling 模式把物理 CFG block 分配给两个独立 profile。静态 CFG 的跨 owner 边必须有显式 `VmBridge`，
 其中包含源/目标 profile、continuation/destination block、状态策略、key epoch、内存顺序和
 深度上限。runtime 在每次 block transition 动态推导 owner，并切换 opcode translation 和
 handler variants。
 
-两个 VM 共用一个完整执行 frame，GPR、FP/SIMD、SP、flags、VM return state 和内存语义
-无需经过有损 native ABI。CFG loop 可以跨 profile，而不会递归压入 interpreter frame。
-未知 owner、缺失/同 profile bridge、不一致 partition 和非法深度会被拒绝。
+当前 native runtime 共用一个完整执行 frame，因此 GPR、FP/SIMD、SP、flags、VM return state
+和内存语义无需经过有损 native ABI。host reference interpreter 现在还会为不同 profile 模拟
+独立编码状态帧，并在跨 profile 边按 liveness 应用可逆变换。VM 内部调用期间的跨 profile 边
+会传递完整状态，保留返回后才使用的调用者寄存器；动态返回边使用 continuation block 的
+live-in，不对应静态 `VmBridge`。目标汇编尚未消费这些状态布局与变换。CFG loop
+可跨 profile，而不会递归压入 interpreter frame。未知 owner、缺失/同 profile bridge、不一致
+partition 和非法深度会被拒绝。
 
 ## 每层的可操作变化
 
@@ -72,6 +76,18 @@ handler variants。
 质量门禁检查唯一 payload/manifest、pairwise ciphertext distance、相同位置重合、literal
 暴露、size/runtime ratio、bridge count、owner balance 和 QEMU 行为一致。这些指标可以
 发现退化，但不能证明专业分析者无法恢复语义。
+
+## 实验性攻击者与合成模型
+
+`scripts/reference_devirtualizer.py` 提取加密 VM 字节范围，并将 block hash 与暴露的 sidecar
+metadata 关联。它是攻击者侧观测 oracle，不是语义 devirtualizer：不会撤销 runtime whitening、
+operand-window 变换，也不会重建 handler。
+
+此外还有两个 host 侧模型。superoperator miner 会报告有界、重复、无副作用且位于同一 CFG
+block 内的标量 opcode 序列；它不会生成 bytecode 或 handler。state-representation 模型提供
+可逆的 profile-local GPR、FP、vector、flags 和 SP 布局及 live-mask 变换。host sibling
+interpreter 已执行该模型；native runtime bridge 尚未使用。两项模型目前都不改变生成的
+原生保护字节。
 
 ## AArch64 Advanced SIMD
 

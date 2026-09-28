@@ -10,10 +10,12 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "runtime" / "aarch64_vm.S"
 OUTPUT = ROOT / "include" / "myvmp" / "runtime" / "aarch64_blob.inc"
+TEMP_ROOT = ROOT / "build" / "tmp"
 
 
 def generate() -> str:
-    with tempfile.TemporaryDirectory(prefix="myvmp-aarch64-runtime-") as directory:
+    TEMP_ROOT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="myvmp-aarch64-runtime-", dir=TEMP_ROOT) as directory:
         temp = Path(directory)
         obj = temp / "runtime.o"
         binary = temp / "runtime.bin"

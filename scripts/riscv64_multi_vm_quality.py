@@ -16,6 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "build" / "myvmp"
 REPORT = ROOT / "build" / "logs" / "quality" / "riscv64-multi-vm-quality.json"
+TEMP_ROOT = ROOT / "build" / "tmp"
 
 
 def run(command: list[str]) -> subprocess.CompletedProcess[str]:
@@ -39,7 +40,8 @@ def main() -> int:
     count = int(sys.argv[1], 0) if len(sys.argv) > 1 else 8
     if count < 4:
         raise RuntimeError("RV64 quality gate requires at least four seed pairs")
-    with tempfile.TemporaryDirectory(prefix="myvmp-rv64-quality-") as directory:
+    TEMP_ROOT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="myvmp-rv64-quality-", dir=TEMP_ROOT) as directory:
         temp = Path(directory)
         original = temp / "original"
         compiled = run(["riscv64-linux-gnu-gcc", "-O2", "-static", "-march=rv64imafd",

@@ -11,6 +11,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "runtime" / "arm32_vm.S"
 OUTPUT = ROOT / "include" / "myvmp" / "runtime" / "arm32_blob.inc"
+TEMP_ROOT = ROOT / "build" / "tmp"
 
 
 def text_section(elf: bytes) -> bytes:
@@ -29,7 +30,8 @@ def text_section(elf: bytes) -> bytes:
 
 
 def generate() -> str:
-    with tempfile.TemporaryDirectory(prefix="myvmp-arm32-runtime-") as directory:
+    TEMP_ROOT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="myvmp-arm32-runtime-", dir=TEMP_ROOT) as directory:
         obj = Path(directory) / "runtime.o"
         subprocess.run(["clang", "--target=armv7-linux-gnueabihf", "-c", str(SOURCE), "-o", str(obj)], check=True)
         relocations = subprocess.run(["readelf", "-rW", str(obj)], check=True, text=True,

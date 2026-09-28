@@ -16,6 +16,8 @@ security model before integrating myVMP into a release pipeline.
 - [Published benchmark snapshot](readme-benchmarks.md) — real cross-architecture quality,
   size and QEMU behavior results used by the README.
 - [Testing](testing.md) — unit, QEMU, large-ELF, diversity and release gates.
+- [Documentation website publishing](site-publishing.md) — automated MkDocs deployment to
+  the separate `gh-pages` branch.
 
 ## Design documentation
 
@@ -32,10 +34,10 @@ security model before integrating myVMP into a release pipeline.
 
 ## Project governance
 
-- [Changelog](../CHANGELOG.md)
-- [Contributing](../CONTRIBUTING.md)
-- [Security policy](../SECURITY.md)
-- [GPL-3.0-only license](../LICENSE)
+- [Changelog](https://github.com/TephrocactusMYC/CactiVM/blob/master/CHANGELOG.md)
+- [Contributing](https://github.com/TephrocactusMYC/CactiVM/blob/master/CONTRIBUTING.md)
+- [Security policy](https://github.com/TephrocactusMYC/CactiVM/blob/master/SECURITY.md)
+- [GPL-3.0-only license](https://github.com/TephrocactusMYC/CactiVM/blob/master/LICENSE)
 
 ## Source map
 

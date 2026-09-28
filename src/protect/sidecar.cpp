@@ -69,6 +69,11 @@ bool publish_profile_sidecar(const std::filesystem::path& protected_output,
                     << ", \"source_block_id\": " << bridge.continuation_block_id
                     << ", \"continuation_block_id\": " << bridge.continuation_block_id
                     << ", \"destination_block_id\": " << bridge.destination_block_id
+                    << ", \"live_gpr_mask\": " << bridge.live_gpr_mask
+                    << ", \"live_fp_mask\": " << bridge.live_fp_mask
+                    << ", \"live_vector_mask\": " << bridge.live_vector_mask
+                    << ", \"sp_policy\": " << static_cast<unsigned>(bridge.sp_policy)
+                    << ", \"nzcv_policy\": " << static_cast<unsigned>(bridge.nzcv_policy)
                     << ", \"maximum_depth\": " << static_cast<unsigned>(bridge.maximum_depth)
                     << "}";
             }

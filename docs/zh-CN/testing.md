@@ -24,9 +24,9 @@ make integration-test
 make generated-fixture-test
 ```
 
-Pull request 的 GitHub Action 有意只运行快速的仓库卫生检查、严格 host 构建、host 单元测试
-和版本检查。交叉编译、QEMU、seed sweep、大 ELF 及 runtime 生成门禁资源消耗较高，不再对
-每次 push 强制执行；发布或专用硬件测试 job 中再运行下面的架构专项命令。
+GitHub Actions 现在只负责构建并发布文档网站，不会编译项目或运行测试。请在本地发布环境或
+专用硬件 job 中运行下面的命令。交叉编译、QEMU、seed sweep、大 ELF 和 runtime 生成门禁不与
+常规文档发布混在一起。
 
 ## AArch64
 

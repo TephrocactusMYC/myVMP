@@ -9,10 +9,12 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "runtime" / "riscv64_vm.S"
 OUTPUT = ROOT / "include" / "myvmp" / "runtime" / "riscv64_blob.inc"
+TEMP_ROOT = ROOT / "build" / "tmp"
 
 
 def generate() -> str:
-    with tempfile.TemporaryDirectory(prefix="myvmp-riscv64-runtime-") as directory:
+    TEMP_ROOT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="myvmp-riscv64-runtime-", dir=TEMP_ROOT) as directory:
         obj = Path(directory) / "runtime.o"
         elf = Path(directory) / "runtime.elf"
         raw = Path(directory) / "runtime.bin"

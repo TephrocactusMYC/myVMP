@@ -93,15 +93,21 @@ flowchart LR
     B2 -->|B bridge A| A3
 ```
 
-Each block has an owner. Every cross-owner CFG edge has an explicit `VmBridge` containing
+Each block has an owner. Every static cross-owner CFG edge has an explicit `VmBridge` containing
 source/destination profile identifiers, continuation and destination blocks, state policy,
 key epoch, memory-order metadata and a depth bound. The runtime derives the owner on every
 block transition and switches opcode translation plus handler variants dynamically.
 
-Both VMs share one complete execution frame, so GPRs, FP/SIMD state, SP, flags, VM return
-state and memory semantics do not pass through a lossy native ABI. CFG loops can cross
-profiles without recursively nesting interpreter frames. Unknown owners, missing bridges,
-same-profile bridges, inconsistent partitions and invalid depth metadata are rejected.
+The native runtimes currently share one complete execution frame, so GPRs, FP/SIMD state,
+SP, flags, VM return state and memory semantics do not pass through a lossy native ABI. The
+host reference interpreter now additionally models distinct encoded state frames per
+profile and applies reversible liveness-selected transformations at cross-profile edges.
+While an internal VM call is active, cross-profile edges transfer complete state so caller
+registers used after return survive; the host interpreter uses the continuation block's live-ins for
+the dynamic return edge, which is not a static `VmBridge`. These state layouts and transforms
+are not yet consumed by target assembly. CFG loops can cross profiles without
+recursively nesting interpreter frames. Unknown owners, missing bridges, same-profile
+bridges, inconsistent partitions and invalid depth metadata are rejected.
 
 This design is intentionally different from unrestricted recursive virtualization. It
 delivers per-block VM changes without multiplying interpreter stacks or exception/call ABI
@@ -132,6 +138,20 @@ The project measures, among other things:
 These tests detect regressions such as a fixed opcode map or exposed constants. They do
 not prove that a skilled analyst cannot recover semantics. See the
 [security model](security-model.md) and [analysis guide](analysis-and-reports.md).
+
+## Experimental attacker and synthesis models
+
+`scripts/reference_devirtualizer.py` extracts the encrypted VM byte range and correlates
+its block hashes with exposed sidecar metadata. It is an attacker-side observation oracle,
+not a semantic devirtualizer: it does not undo runtime whitening, operand-window transforms,
+or reconstruct handlers.
+
+Two host-side models are also available. The superoperator miner reports
+bounded, repeated, side-effect-free scalar opcode sequences confined to a single CFG block;
+it does not emit bytecode or handlers. The state-representation model provides reversible
+profile-local GPR, FP, vector, flags, and SP layouts and live-mask transforms. The host
+sibling interpreter executes this model; native runtime bridges do not consume it yet.
+Neither model currently changes emitted native protection bytes.
 
 ## AArch64 Advanced SIMD
 

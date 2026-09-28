@@ -25,8 +25,8 @@ decoder/lifter test、host semantics、native handler、畸形输入处理和 QE
 
 使用 C++20 和四空格缩进，不允许 tab 或行尾空白；public C++ header 以 `#pragma once`
 开头，文本使用 UTF-8/LF 并以换行结束。保持接口小而明确，优先复用公共
-format/validator。CI 会用 GCC/Clang、`-Werror` 以及严格的 format、shadow、
-preprocessor、cast diagnostics 编译。
+format/validator。提交 C++ 改动前，请在本地运行严格编译和相关测试。GitHub Actions
+仅用于发布 Markdown 文档网站；设置和分支要求见 `docs/zh-CN/site-publishing.md`。
 
 PR 应说明安全/正确性问题、架构影响、执行过的测试、性能/体积变化和格式兼容性影响。
 用户可见变更应加入 `CHANGELOG.md` 的 `Unreleased`。

@@ -7,10 +7,12 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SYMBOLS = ["rv64_loop", "rv64_global_access", "rv64_switch"]
+TEMP_ROOT = ROOT / "build" / "tmp"
 
 
 def main() -> int:
-    with tempfile.TemporaryDirectory(prefix="myvmp-rv64-corpus-") as directory:
+    TEMP_ROOT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="myvmp-rv64-corpus-", dir=TEMP_ROOT) as directory:
         elf = Path(directory) / "corpus"
         subprocess.run(["riscv64-linux-gnu-gcc", "-O2", "-march=rv64im", "-mabi=lp64",
                         "-mno-relax", "-fno-pic", "-ffreestanding", "-c",

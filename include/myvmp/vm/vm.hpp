@@ -14,6 +14,7 @@ struct SiblingVmImage;
 struct Result {
     std::uint64_t value{};
     std::uint64_t instructions_executed{};
+    std::uint64_t profile_state_transitions{};
 };
 
 struct Flags {
@@ -44,6 +45,7 @@ private:
     std::array<std::uint64_t, 32> fp_regs_{};
     ir::VectorRegisterFile vector_regs_{};
     Flags flags_{};
+    const SiblingVmImage* sibling_context_{};
 };
 
 } // namespace myvmp::vm

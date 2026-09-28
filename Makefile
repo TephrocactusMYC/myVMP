@@ -22,6 +22,9 @@ LIB_OBJS := \
 	$(BUILD_DIR)/src/elf/elf.o \
 	$(BUILD_DIR)/src/elf/patch_plan.o \
 	$(BUILD_DIR)/src/ir/ir.o \
+	$(BUILD_DIR)/src/ir/analysis.o \
+	$(BUILD_DIR)/src/vmisa/function_isa.o \
+	$(BUILD_DIR)/src/vmisa/superoperator.o \
 	$(BUILD_DIR)/src/riscv64/decoder.o \
 	$(BUILD_DIR)/src/patch/aarch64_trampoline.o \
 	$(BUILD_DIR)/src/patch/arm32_trampoline.o \
@@ -37,9 +40,10 @@ LIB_OBJS := \
 	$(BUILD_DIR)/src/runtime/profile_tables.o \
 	$(BUILD_DIR)/src/runtime/riscv64.o \
 	$(BUILD_DIR)/src/vm/multi_vm.o \
+	$(BUILD_DIR)/src/vm/state_encoding.o \
 	$(BUILD_DIR)/src/vm/vm.o
 
-.PHONY: all test version-check docs-check style-check check-release-tools release-check reproducible-check package-smoke-test error-contract-test generate-fixtures check-generated-fixtures generate-arm32-runtime check-arm32-runtime generate-aarch64-runtime check-aarch64-runtime generate-riscv64-runtime check-riscv64-runtime integration-test arm32-elf-parser-test arm32-vm-protect-test arm64-integration-test generated-fixture-test arm64-coverage-report arm64-liftability-report arm64-protect-dry-run-test arm64-elf-patch-test arm64-vm-protect-test arm64-simd-test arm64-far-elf-test arm64-micro-lift-test bytecode-seed-sweep multi-vm-quality-test riscv64-multi-vm-quality-test riscv64-elf-stress-test riscv64-fixture-test riscv64-liftability-report riscv64-vm-protect-test asm-diff release package clean
+.PHONY: all test version-check docs-check style-check check-release-tools release-check reproducible-check package-smoke-test error-contract-test attacker-metrics generate-fixtures check-generated-fixtures generate-arm32-runtime check-arm32-runtime generate-aarch64-runtime check-aarch64-runtime generate-riscv64-runtime check-riscv64-runtime integration-test arm32-elf-parser-test arm32-vm-protect-test arm64-integration-test generated-fixture-test arm64-coverage-report arm64-liftability-report arm64-protect-dry-run-test arm64-elf-patch-test arm64-vm-protect-test arm64-simd-test arm64-far-elf-test arm64-micro-lift-test bytecode-seed-sweep multi-vm-quality-test riscv64-multi-vm-quality-test riscv64-elf-stress-test riscv64-fixture-test riscv64-liftability-report riscv64-vm-protect-test asm-diff release package clean
 
 all: $(BUILD_DIR)/myvmp $(BUILD_DIR)/myvmp_demo $(BUILD_DIR)/myvmp_tests
 
@@ -83,6 +87,10 @@ package-smoke-test: package
 
 error-contract-test: $(BUILD_DIR)/myvmp
 	sh scripts/error_contract_test.sh
+
+# Example: make attacker-metrics ARGS='build/protected.elf --output build/attacker.json'
+attacker-metrics:
+	python3 scripts/vm_attacker_metrics.py $(ARGS)
 
 riscv64-fixture-test: $(BUILD_DIR)/myvmp
 	bash scripts/riscv64_fixture_test.sh

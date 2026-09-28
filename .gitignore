@@ -4,6 +4,7 @@
 /cmake-build-*/
 /out/
 /dist/
+/site/
 /CMakeFiles/
 /CMakeCache.txt
 /compile_commands.json

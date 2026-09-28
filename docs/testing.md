@@ -27,10 +27,10 @@ make integration-test
 make generated-fixture-test
 ```
 
-The pull-request GitHub Action intentionally runs only the fast repository-hygiene checks,
-strict host build, host unit tests and version check. Cross-compilation, QEMU, seed-sweep,
-large-ELF and generated-runtime gates are resource-intensive and are not run on every push;
-run the architecture-specific commands below in a release or dedicated hardware test job.
+The GitHub Actions workflow now only builds and publishes the documentation site; it does
+not compile the project or run tests. Run the commands below in a local release environment
+or a dedicated hardware test job. Cross-compilation, QEMU, seed-sweep, large-ELF and
+generated-runtime gates are deliberately kept out of routine documentation publishing.
 
 ## AArch64 release gates
 
