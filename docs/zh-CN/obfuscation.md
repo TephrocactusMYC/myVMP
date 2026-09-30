@@ -79,9 +79,11 @@ partition 和非法深度会被拒绝。
 
 ## 实验性攻击者与合成模型
 
-`scripts/reference_devirtualizer.py` 提取加密 VM 字节范围，并将 block hash 与暴露的 sidecar
-metadata 关联。它是攻击者侧观测 oracle，不是语义 devirtualizer：不会撤销 runtime whitening、
-operand-window 变换，也不会重建 handler。
+`scripts/reference_devirtualizer.py` 直接读取 AArch64、ARM32 和 RV64 runtime 头部，撤销
+bytecode whitening 与 operand-window 编码，从保护后的 ELF 恢复物理 block、owner、VM 指令和
+静态 CFG 边；可选 sidecar 用于核对。AArch64 owner 表的 XOR 使用同一头部中暴露的 key，
+因此不能把该表或字节码编码视为秘密。该工具尚未恢复 handler 效果、源码级语义 IR 或动态
+VM return 边。
 
 此外还有两个 host 侧模型。superoperator miner 会报告有界、重复、无副作用且位于同一 CFG
 block 内的标量 opcode 序列；它不会生成 bytecode 或 handler。state-representation 模型提供

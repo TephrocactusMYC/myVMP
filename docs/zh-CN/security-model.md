@@ -28,6 +28,11 @@ myVMP 用于提高 Linux ELF 中选定 user-mode 函数的静态分析和常规 
 分析者最终可以建模 fetch/decode/dispatch/handler。multi-VM 和多态会提高 normalization
 成本，但复杂度不等于密码学保证。
 
+当前 AArch64、ARM32 和 RV64 runtime 格式即使没有发布 sidecar，也会向分析者暴露物理
+VM block、owner、VM 指令字段和静态 CFG 边。owner 表和 bytecode 变换使用 runtime 头部内
+保存的 key，属于可逆编码，不是保密边界。这还不足以恢复 handler 效果、动态返回边或源码级
+语义。可用[参考 runtime 分析工具](analysis-and-reports.md)测量这一暴露。
+
 ## 失败关闭边界
 
 不支持 machine/class、symbol 缺失或 size 为零、未知指令、不安全 relocation、无法表示的

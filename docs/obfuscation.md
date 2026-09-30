@@ -141,10 +141,13 @@ not prove that a skilled analyst cannot recover semantics. See the
 
 ## Experimental attacker and synthesis models
 
-`scripts/reference_devirtualizer.py` extracts the encrypted VM byte range and correlates
-its block hashes with exposed sidecar metadata. It is an attacker-side observation oracle,
-not a semantic devirtualizer: it does not undo runtime whitening, operand-window transforms,
-or reconstruct handlers.
+`scripts/reference_devirtualizer.py` reads AArch64, ARM32 and RV64 runtime headers and
+reverses bytecode whitening and operand-window encoding to recover physical blocks, owners,
+VM instructions and static CFG edges directly from protected ELFs. An optional sidecar
+checks the recovered structure against ground truth. The exposed header key also undoes
+AArch64's owner-table XOR, so neither that table nor the bytecode encoding should be treated
+as secret. The oracle does not reconstruct handler effects, source-level semantic IR or
+dynamic VM-return edges.
 
 Two host-side models are also available. The superoperator miner reports
 bounded, repeated, side-effect-free scalar opcode sequences confined to a single CFG block;

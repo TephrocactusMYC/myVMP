@@ -9,6 +9,17 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed / 变更
 
+- Extended the reference devirtualizer to reverse AArch64, ARM32 and RV64 runtime bytecode
+  encoding without a sidecar, recover VM instructions and static CFG edges, and compare
+  them with sidecars in real protected-ELF regressions. Handler effects and source-level
+  semantic IR recovery remain future work.
+- 扩展参考反虚拟化分析工具：无需 sidecar 即可撤销 AArch64、ARM32、RV64 runtime bytecode
+  编码并恢复 VM 指令与静态 CFG 边；真实保护 ELF 回归会与 sidecar 对比。handler 效果和
+  源码级语义 IR 恢复仍为后续工作。
+- Switched the Pages site to pinned Material for MkDocs with Mermaid support and a deployment
+  check that diagram containers are emitted for both English and Chinese pages.
+- Pages 网站改用固定版本的 Material for MkDocs 支持 Mermaid，并在部署前检查中英文页面
+  均生成图表容器。
 - Replaced the slow build/test workflow with a documentation-only GitHub Pages publisher;
   MkDocs sources remain Markdown on the source branch and generated pages go to `gh-pages`.
 - 将耗时的编译/测试 workflow 替换为仅发布文档的 GitHub Pages 流程；源码分支只保留

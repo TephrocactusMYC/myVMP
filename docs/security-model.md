@@ -32,6 +32,13 @@ An analyst can eventually model fetch/decode/dispatch/handler behavior. Multi-VM
 polymorphism make normalization more expensive, but complexity is not equivalent to a
 cryptographic guarantee.
 
+The current AArch64, ARM32 and RV64 runtime formats expose physical VM block boundaries,
+owner indices, VM instruction fields and static CFG edges to analysis even when no sidecar
+is published. The owner-table and bytecode transforms use keys stored in the runtime header;
+they are reversible encodings, not confidentiality boundaries. This does not by itself
+recover handler effects, dynamic return edges or source-level semantics. The
+[reference runtime oracle](analysis-and-reports.md) measures this exposure.
+
 ## Fail-closed boundaries
 
 Protection is rejected for unsupported machines/classes, missing or zero-sized symbols,

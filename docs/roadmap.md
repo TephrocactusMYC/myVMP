@@ -30,10 +30,11 @@ tests are implemented. The next priorities are intentionally concise.
   sibling ownership and live-state bridge metadata; the host sibling interpreter now executes
   deterministic reversible register/flag/vector/SP representation transforms at live-state
   boundaries, but native runtime bridge integration remains future work;
-- `scripts/reference_devirtualizer.py` extracts and fingerprints encrypted payload blocks
-  beside disclosed sidecar CFG/profile data, but does not recover semantics. Model runtime
-  whitening/operand transforms next, then measure recovered CFG/IR rather than treating
-  ciphertext or sidecar proxies as protection evidence;
+- `scripts/reference_devirtualizer.py` now reverses runtime bytecode whitening and operand
+  encoding on AArch64, ARM32 and RV64 without a sidecar, recovering VM instructions and
+  static CFG edges; optional sidecars quantify exact matches. Next recover handler effects
+  and source-level semantic IR, including dynamic call/return edges, and measure the cost
+  across compilers/functions rather than treating byte entropy as protection evidence;
 - integrate the experimental `FunctionVmIsa` descriptor into a real per-function encoder
   and runtime grammar before claiming function-specific bytecode formats;
 - a bounded, same-basic-block miner now reports frequent side-effect-free scalar sequences;

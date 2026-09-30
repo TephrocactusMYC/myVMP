@@ -39,21 +39,49 @@ python3 scripts/vm_attacker_metrics.py build/protected.elf --trace build/block-t
 The report covers visible profile fingerprints, manifest CFG/owner/bridge structure,
 implementation-known operand-format reuse, and optional observed block-trace shape. A trace
 is a JSON block-ID list or `{"block_ids": [...]}`. Sidecar graph values measure disclosed
-metadata; an ELF without a sidecar is marked opaque. These values are structural proxies,
-not recovered semantics or measured devirtualization effort.
+metadata; this particular sidecar-oriented tool marks an ELF without a sidecar opaque. That
+status is a tool limitation, not a claim that the runtime format conceals its structure.
+These values are structural proxies, not recovered semantics or measured devirtualization effort.
 
-For an attacker-side payload/manifest oracle, use `scripts/reference_devirtualizer.py`:
+For an attacker-side runtime bytecode oracle, use `scripts/reference_devirtualizer.py`:
 
 ```sh
 python3 scripts/reference_devirtualizer.py build/protected.elf \
   --payload-file-offset 0x123000 --output build/reference-analysis.json
+# To ignore an adjacent sidecar, supply the architecture and runtime code size:
+python3 scripts/reference_devirtualizer.py build/protected.elf \
+  --no-sidecar --architecture aarch64 --runtime-code-size 10024 \
+  --payload-file-offset 0x123000 --output build/runtime-only-analysis.json
 ```
 
-The file offset is the `payload_offset` printed by `protect`. The tool extracts the
-encrypted VM byte region, hashes it, and associates ciphertext ranges with the disclosed
-block/profile/CFG metadata. It does **not** claim to recover bytecode semantics: native
-runtime block whitening and dynamic operand-window transforms must first be modeled. This
-is a baseline attacker oracle for future differential work, not a devirtualizer.
+The file offset is the `payload_offset` printed by `protect`; the runtime code size must
+match the build being examined (`10024` is an example, not a format constant). The tool
+reads native runtime headers for AArch64, ARM32 and RV64, reverses bytecode whitening and
+operand-window encoding, and recovers physical blocks, owner indices, logical VM opcodes,
+operand bytes and explicit static branch targets without a sidecar. It derives additional
+fallthrough edges from instruction boundaries. AArch64 single-VM opcode mapping uses the
+patched native dispatcher and the checked-out source's comparison order; the other modes
+use runtime translation tables. With a sidecar, it compares recovered blocks, owners and
+CFG edges against published metadata. The v3 report keeps VM instruction/CFG recovery
+separate from source-level semantic IR recovery, which remains zero; dynamic VM-return
+edges and handler effects are not inferred. These exposed fields should not be interpreted
+as evidence of semantic protection. Run `make reference-devirtualizer-test` with all three
+cross toolchains to check real protected ELF fixtures, including AArch64 single/sibling
+mode, truncation and malformed size/target/owner data. Consumers should check `schema`:
+`payload_file_offset` is the runtime start and `encrypted_bytecode_file_offset` is the
+encrypted VM region (v1 used the former name for the encrypted region).
+
+The current integration fixtures produce these exact sidecar comparisons (sibling mode,
+seeds `12345`/`67890`):
+
+| Protected fixture | Runtime blocks | Boundary/owner matches | VM instructions | CFG edge matches |
+|---|---:|---:|---:|---:|
+| AArch64 branch operations | 5 | 5/5 | 27 | 6/6 |
+| ARM32 VM probe | 5 | 5/5 | 37 | 6/6 |
+| RV64 integer operations | 3 | 3/3 | 29 | 2/2 |
+
+The same instructions and edges are recovered when each sidecar is ignored. These counts
+come from the stated fixtures/seeds, not an architecture-wide coverage claim.
 
 The JSON emitted by `quality-report --json` has the stable top-level identifier
 `"schema": "myvmp-quality-v1"`. Consumers should check this value before interpreting

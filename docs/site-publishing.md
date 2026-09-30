@@ -3,8 +3,9 @@
 [中文](zh-CN/site-publishing.md)
 
 The repository keeps documentation source as Markdown under `docs/`. The GitHub Actions
-workflow in `.github/workflows/docs.yml` installs the pinned MkDocs version, performs a
-strict build, and publishes the generated site to the separate `gh-pages` branch. Generated
+workflow in `.github/workflows/docs.yml` installs pinned MkDocs and Material for MkDocs
+versions, verifies that Mermaid diagrams appear in the generated HTML, performs a strict
+build, and publishes the generated site to the separate `gh-pages` branch. Generated
 HTML is not maintained or committed on the source branch.
 
 ## One-time GitHub setup

@@ -3,7 +3,8 @@
 [English](../site-publishing.md)
 
 仓库只在 `docs/` 下维护 Markdown 文档。`.github/workflows/docs.yml` 会在 GitHub Actions
-中安装固定版本的 MkDocs、执行严格构建，并将生成的网站发布到独立的 `gh-pages` 分支。
+中安装固定版本的 MkDocs 和 Material 主题，检查生成的 HTML 中是否包含 Mermaid 图，
+执行严格构建，并将生成的网站发布到独立的 `gh-pages` 分支。
 生成的 HTML 不需要在本地生成，也不应提交到源码分支。
 
 ## GitHub 一次性设置

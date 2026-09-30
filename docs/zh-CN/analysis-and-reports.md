@@ -29,20 +29,44 @@ python3 scripts/vm_attacker_metrics.py build/protected.elf --trace build/block-t
 
 报告包含可见 profile 指纹、manifest CFG/owner/bridge 结构、实现中已知的 operand 格式复用，
 以及可选的实际 block trace 形状。trace 接受 block ID JSON 数组或 `{"block_ids": [...]}`。
-sidecar 图指标反映的是披露的 metadata；没有 sidecar 的 ELF 会标记为 opaque。这些只是结构
-代理指标，不代表语义恢复结果或实测反虚拟化成本。
+sidecar 图指标反映的是披露的 metadata；这个依赖 sidecar 的工具会把缺少 sidecar 的 ELF 标记为
+opaque，但这是该工具的局限，不代表 runtime 结构不可分析。这些只是结构代理指标，不代表语义
+恢复结果或实测反虚拟化成本。
 
-攻击者侧的 payload/manifest 基线工具：
+攻击者侧的 runtime bytecode 基线工具：
 
 ```sh
 python3 scripts/reference_devirtualizer.py build/protected.elf \
   --payload-file-offset 0x123000 --output build/reference-analysis.json
+# 忽略相邻 sidecar 时，需提供架构和 runtime 代码大小：
+python3 scripts/reference_devirtualizer.py build/protected.elf \
+  --no-sidecar --architecture aarch64 --runtime-code-size 10024 \
+  --payload-file-offset 0x123000 --output build/runtime-only-analysis.json
 ```
 
-文件偏移使用 `protect` 输出的 `payload_offset`。工具提取加密 VM 区域、计算哈希，
-并将密文范围关联到 sidecar 中公开的 block/profile/CFG 信息。它**不会**声称恢复了
-字节码语义：还需建模 native runtime 的 block whitening 和动态 operand-window 变换。
-这是后续对抗式评估的基线 oracle，不是完整 devirtualizer。
+文件偏移使用 `protect` 输出的 `payload_offset`；runtime 代码大小必须与被分析的构建一致
+（`10024` 仅为示例，并非格式常量）。工具直接读取 AArch64、ARM32 和 RV64 原生 runtime
+头部，撤销 bytecode whitening 和 operand-window 编码，即使没有 sidecar，也能恢复物理 VM
+block、owner、logical VM opcode、operand 字节与显式静态跳转目标，并推导部分 fallthrough 边。
+AArch64 单 VM 模式的 opcode 映射来自已修补的原生 dispatcher 以及本仓库源码中的比较顺序；
+其余模式使用 runtime translation table。有 sidecar 时，会对比 block、owner 和 CFG 边。
+v3 报告把 VM 指令/CFG 恢复与源码级语义 IR 恢复分开计数；后者仍为零，动态 VM return 边和
+handler 语义也未推导。暴露的结构不能当作语义保护有效的证据。安装三个交叉工具链后，
+可用 `make reference-devirtualizer-test` 验证 AArch64 单/双 VM 和其他真实保护产物，以及
+截断输入、非法 size/target/owner 拒绝行为。解析程序应先检查 `schema`：
+`payload_file_offset` 指 runtime 起点，`encrypted_bytecode_file_offset` 指加密 VM 区域
+（v1 曾用前一个字段名指加密区域）。
+
+当前集成 fixture 在 sibling 模式、seed `12345`/`67890` 下得到以下精确 sidecar 对比：
+
+| 保护后的 fixture | Runtime block | 边界/owner 匹配 | VM 指令 | CFG 边匹配 |
+|---|---:|---:|---:|---:|
+| AArch64 branch operations | 5 | 5/5 | 27 | 6/6 |
+| ARM32 VM probe | 5 | 5/5 | 37 | 6/6 |
+| RV64 integer operations | 3 | 3/3 | 29 | 2/2 |
+
+忽略各自 sidecar 时，也能恢复相同的指令和边。上述数值只对应所列 fixture/seed，不表示
+整个架构的覆盖率。
 
 `quality-report --json` 输出具有稳定的顶层标识
 `"schema": "myvmp-quality-v1"`。解析器应先检查该值，再解释指标；未来 schema 版本可能

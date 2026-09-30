@@ -27,9 +27,10 @@ AArch64、ARM32/A32、RV64 scalar 函数保护、动态 operand codec、CFG-awar
 - 首版 CFG dominator、自然循环和多类寄存器 liveness 分析已用于 seeded sibling owner
   分配与 live-state bridge metadata；host sibling interpreter 现在会在 live-state 边界实际执行
   确定性的 register/flags/vector/SP 可逆表示变换，但 native runtime bridge 集成仍是后续工作；
-- `scripts/reference_devirtualizer.py` 会提取并 fingerprint 加密 payload block，并结合公开的
-  sidecar CFG/profile，但不会恢复语义。下一步应建模 runtime whitening/operand 变换，再评估
-  恢复出的 CFG/IR；不要把密文或 sidecar 代理指标当作保护效果；
+- `scripts/reference_devirtualizer.py` 现可在没有 sidecar 时，撤销 AArch64、ARM32 和 RV64
+  runtime bytecode whitening 与 operand 编码，恢复 VM 指令和静态 CFG 边；可选 sidecar
+  会量化精确匹配数。下一步恢复 handler 效果、源码级语义 IR 和动态调用/返回边，并跨编译器和
+  函数评估恢复成本；不能把字节熵当作保护效果；
 - 将实验性 `FunctionVmIsa` 描述符接入真正的函数专属 encoder/runtime grammar，完成前不宣称
   bytecode 格式已按函数变化；
 - 已有有界、同一基本块、无副作用标量序列挖掘器；只有生成 handler 并通过差分语义验证后，

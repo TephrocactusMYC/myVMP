@@ -8,8 +8,15 @@ site_dir: site
 strict: true
 
 theme:
-  name: readthedocs
-  locale: en
+  name: material
+  language: en
+
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
 
 nav:
   - Home: index.md

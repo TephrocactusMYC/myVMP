@@ -43,7 +43,7 @@ LIB_OBJS := \
 	$(BUILD_DIR)/src/vm/state_encoding.o \
 	$(BUILD_DIR)/src/vm/vm.o
 
-.PHONY: all test version-check docs-check style-check check-release-tools release-check reproducible-check package-smoke-test error-contract-test attacker-metrics generate-fixtures check-generated-fixtures generate-arm32-runtime check-arm32-runtime generate-aarch64-runtime check-aarch64-runtime generate-riscv64-runtime check-riscv64-runtime integration-test arm32-elf-parser-test arm32-vm-protect-test arm64-integration-test generated-fixture-test arm64-coverage-report arm64-liftability-report arm64-protect-dry-run-test arm64-elf-patch-test arm64-vm-protect-test arm64-simd-test arm64-far-elf-test arm64-micro-lift-test bytecode-seed-sweep multi-vm-quality-test riscv64-multi-vm-quality-test riscv64-elf-stress-test riscv64-fixture-test riscv64-liftability-report riscv64-vm-protect-test asm-diff release package clean
+.PHONY: all test version-check docs-check style-check check-release-tools release-check reproducible-check package-smoke-test error-contract-test reference-devirtualizer-test attacker-metrics generate-fixtures check-generated-fixtures generate-arm32-runtime check-arm32-runtime generate-aarch64-runtime check-aarch64-runtime generate-riscv64-runtime check-riscv64-runtime integration-test arm32-elf-parser-test arm32-vm-protect-test arm64-integration-test generated-fixture-test arm64-coverage-report arm64-liftability-report arm64-protect-dry-run-test arm64-elf-patch-test arm64-vm-protect-test arm64-simd-test arm64-far-elf-test arm64-micro-lift-test bytecode-seed-sweep multi-vm-quality-test riscv64-multi-vm-quality-test riscv64-elf-stress-test riscv64-fixture-test riscv64-liftability-report riscv64-vm-protect-test asm-diff release package clean
 
 all: $(BUILD_DIR)/myvmp $(BUILD_DIR)/myvmp_demo $(BUILD_DIR)/myvmp_tests
 
@@ -87,6 +87,9 @@ package-smoke-test: package
 
 error-contract-test: $(BUILD_DIR)/myvmp
 	sh scripts/error_contract_test.sh
+
+reference-devirtualizer-test: $(BUILD_DIR)/myvmp
+	python3 scripts/reference_devirtualizer_test.py
 
 # Example: make attacker-metrics ARGS='build/protected.elf --output build/attacker.json'
 attacker-metrics:

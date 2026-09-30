@@ -157,7 +157,7 @@ def analyze(path: Path, trace_path: Path | None) -> dict[str, Any]:
             "analysis_status": "opaque_without_sidecar",
             "evidence_class": "artifact_metadata_only",
             "devirtualization_performed": False,
-            "limitation": "No adjacent .myvmp.json sidecar; encrypted payload and ELF alone do not reveal CFG/profile fields to this tool.",
+            "limitation": "No adjacent .myvmp.json sidecar; this manifest-oriented tool does not parse runtime bytecode. Use reference_devirtualizer.py for sidecar-free VM instruction and static CFG recovery.",
         }
         if elf_path is not None and elf_path.is_file():
             data_hash = hashlib.sha256()
