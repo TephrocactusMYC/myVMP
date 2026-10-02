@@ -1,0 +1,1930 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="ELF function protection with virtualized obfuscation for ARM32, AArch64, and RV64">
+      
+      
+      
+        <link rel="canonical" href="https://tephrocactusmyc.github.io/CactiVM/zh-CN/android-vision/">
+      
+      
+        <link rel="prev" href="../roadmap/">
+      
+      
+        <link rel="next" href="../../site-publishing/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Android 远景 - myVMP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#android" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="myVMP" class="md-header__button md-logo" aria-label="myVMP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            myVMP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Android 远景
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/TephrocactusMYC/CactiVM" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TephrocactusMYC/CactiVM
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="myVMP" class="md-nav__button md-logo" aria-label="myVMP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    myVMP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/TephrocactusMYC/CactiVM" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TephrocactusMYC/CactiVM
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../build-and-platforms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build and Platforms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis-and-reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis and Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../readme-benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../obfuscation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Obfuscation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research and References
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../android-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Android Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    中文
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    中文
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    文档首页
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用指南
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../build-and-platforms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    编译与平台
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis-and-reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    分析报告
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../readme-benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实测基准
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    测试
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    架构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    技术论文
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../obfuscation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    混淆设计
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    安全模型
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../research/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    调研与参考
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    路线图
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Android 远景
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Android 远景
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        结论
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#android_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Android 工件与约束
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        推荐流水线
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        现有资源复用评估
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        必须完成的工程
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="必须完成的工程">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-artifact-abi-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 定义 artifact 和 ABI contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-release-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 让函数选择适配 release build
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-android-et_dyn-writer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Android ET_DYN writer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-runtimejniabi-qualification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Runtime/JNI/ABI qualification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-packaging-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Packaging integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-android-release-gates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Android release gates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        难度分解
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        建议阶段路线
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        开发前决策门
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../site-publishing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Site Publishing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../site-publishing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布文档站
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        结论
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#android_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Android 工件与约束
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        推荐流水线
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        现有资源复用评估
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        必须完成的工程
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="必须完成的工程">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-artifact-abi-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 定义 artifact 和 ABI contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-release-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 让函数选择适配 release build
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-android-et_dyn-writer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Android ET_DYN writer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-runtimejniabi-qualification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Runtime/JNI/ABI qualification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-packaging-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Packaging integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-android-release-gates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Android release gates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        难度分解
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        建议阶段路线
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        开发前决策门
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="android">Android 原生保护——长期调研规划</h1>
+<p><a href="../../android-vision/">English</a></p>
+<blockquote>
+<p>状态：仅调研。本文件不表示 Android 已受支持，也不授权立即实现。这里的“Android
+保护”仅指 NDK 共享库中的选定函数，不包含 Java/Kotlin/Dex、资源或整个 APK。</p>
+</blockquote>
+<h2 id="_1">结论</h2>
+<p>Android <code>arm64-v8a</code> 原型可以大量复用 myVMP，但生产级支持并不是替换一个 ELF 标识。
+Android 原生代码仍是 ELF，因此 AArch64 decoder、IR、bytecode、动态 profile、multi-VM
+模型和大部分 runtime 语义都有直接价值。真正困难的是 Android linker 约束下的 ET_DYN
+安全改写、构建流水线位置、strip 后函数选择、4/16 KiB page、APK/AAB 打包签名，以及
+跨 API/device 验证。</p>
+<p>远景目标应定义为 <strong>Android NDK library protection pipeline</strong>，先做 <code>arm64-v8a</code>：在
+native link 之后、strip/package/alignment/sign 之前改写未 strip 的 <code>.so</code>。直接修改已经
+签名的 APK 不应成为主架构。</p>
+<p>假定一名熟悉 binary tooling 的工程师和一个受控示例应用，arm64 PoC 大致是数周级；
+把兼容性和发布门禁算入后，生产级 arm64-v8a 更可能是数月级。完整 ABI 覆盖明显更大：
+<code>armeabi-v7a</code> 默认产生 Thumb-2，x86/x86-64 则需要新后端。这些只是规划量级，不是工期承诺。</p>
+<h2 id="android_1">Android 工件与约束</h2>
+<p>Android 应用通常同时包含 ART bytecode 和 native <code>.so</code>。NDK ELF 位于 APK 的
+<code>lib/&lt;abi&gt;/lib&lt;name&gt;.so</code>；公开 ABI 包括 <code>armeabi-v7a</code>、<code>arm64-v8a</code>、<code>x86</code>、<code>x86_64</code>，
+且均为小端。fat APK 可以包含多份 ABI，App Bundle 则由 Google Play 生成设备 APK。
+<a href="https://developer.android.com/ndk/guides/abis">Android ABI</a></p>
+<p><code>.so</code> 经 <code>System.loadLibrary</code>、Bionic linker 和 namespace policy 加载。Android 推荐
+<code>JNI_OnLoad + RegisterNatives</code>，并用 version script 隐藏其他符号。release <code>.so</code> 可能没有
+可供名称选择的 <code>.symtab</code>，所以必须在 strip 前保护，或消费 linker 产生的 range manifest。
+<a href="https://developer.android.com/ndk/guides/jni-tips">JNI 指南</a>、
+<a href="https://developer.android.com/ndk/guides/symbol-visibility">符号可见性</a></p>
+<p>native library 可以不解压而直接从 APK 加载。当前 Android 还要求 native dependency 与
+ELF PT_LOAD 兼容 16 KiB page；NDK r28 默认生成 16 KiB alignment。
+<a href="https://developer.android.com/guide/topics/manifest/application-element">打包行为</a>、
+<a href="https://developer.android.com/guide/practices/page-sizes">16 KiB page</a></p>
+<h2 id="_2">推荐流水线</h2>
+<pre class="mermaid"><code>flowchart LR
+    A[C/C++ source] --&gt; B[NDK Clang + lld]
+    B --&gt; C[未 strip 的 ABI .so]
+    C --&gt; D[myVMP Android validator/selector]
+    D --&gt; E[保护后 .so + 私有 manifest]
+    E --&gt; F[llvm-strip / symbol archive]
+    F --&gt; G[Gradle package / AAB]
+    G --&gt; H[ZIP alignment + signing]
+    H --&gt; I[APK / Play delivery]</code></pre>
+<p>transform 必须在签名前发生。<code>apksigner</code> 明确说明：签名后修改 APK 会让签名失效，且
+<code>zipalign</code> 必须先于签名。可以把“解包 unsigned APK、改写各 ABI、重打包、对齐、签名”
+作为 fallback，但它更脆弱，也不适合由 AAB/Play 生成 APK 的流程。
+<a href="https://developer.android.com/tools/apksigner">apksigner</a>、
+<a href="https://developer.android.com/studio/publish/app-signing">应用签名</a>、
+<a href="https://developer.android.com/build/building-cmdline">Bundle/命令行构建</a></p>
+<p>建议集成点：</p>
+<ol>
+<li>核心提供单个未 strip NDK <code>.so</code> 的 standalone 命令，输入 ABI、symbol/range manifest、
+   minSdk 和输出路径；</li>
+<li>Gradle wrapper 只负责定位 native artifact，不让核心库绑定不稳定的 AGP 内部 API；</li>
+<li>提供 link 后、strip/package 前的 CMake/ndk-build 示例；</li>
+<li>myVMP 只验证 packaging，不管理 APK/AAB 私钥，签名继续由现有 release system 负责。</li>
+</ol>
+<h2 id="_3">现有资源复用评估</h2>
+<table>
+<thead>
+<tr>
+<th>现有模块</th>
+<th style="text-align: right;">复用程度</th>
+<th>Android 增量工作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AArch64 decoder/lifter/scalar</td>
+<td style="text-align: right;">高</td>
+<td>扩大 NDK/Clang corpus 与 Android call/addressing forms</td>
+</tr>
+<tr>
+<td>ARM32 A32 frontend</td>
+<td style="text-align: right;">有限</td>
+<td>NDK 默认 Thumb-2；强制 ARM mode 只能作为受限方案</td>
+</tr>
+<tr>
+<td>RV64 frontend</td>
+<td style="text-align: right;">仅远期</td>
+<td>当前不是公开 NDK app ABI，不应宣称 Android 支持</td>
+</tr>
+<tr>
+<td>公共 IR/bytecode/operand codec</td>
+<td style="text-align: right;">很高</td>
+<td>Android qualification、limits、manifest fields</td>
+</tr>
+<tr>
+<td>动态 sibling multi-VM</td>
+<td style="text-align: right;">高</td>
+<td>JNI call、exception、thread、stack budget 验证</td>
+</tr>
+<tr>
+<td>arm64 native runtime</td>
+<td style="text-align: right;">高</td>
+<td>Bionic ABI、BTI/PAC property、unwind policy 审计</td>
+</tr>
+<tr>
+<td>ELF parser/planner</td>
+<td style="text-align: right;">中高</td>
+<td>Android relocation/note/dynamic tag/RELR/packed form</td>
+</tr>
+<tr>
+<td>ELF writer/detour</td>
+<td style="text-align: right;">中</td>
+<td>保持 4/16 KiB PT_LOAD、GNU RELRO、APK 直接加载</td>
+</tr>
+<tr>
+<td>sidecar/quality report</td>
+<td style="text-align: right;">高</td>
+<td>详细 manifest 默认只留在私有 CI artifact</td>
+</tr>
+<tr>
+<td>Linux QEMU suite</td>
+<td style="text-align: right;">部分</td>
+<td>增加 emulator/device、adb/logcat、JNI、API matrix</td>
+</tr>
+</tbody>
+</table>
+<p>当前 runtime 从 ELF executable mapping 执行解释器，mutable bytecode/state 位于 data/stack，
+原则上不要求 JIT 式 RWX mapping，对 Android W^X 是有利条件；但必须在真实 Android loader
+验证，不能用 Linux QEMU 结果代替。</p>
+<h2 id="_4">必须完成的工程</h2>
+<h3 id="1-artifact-abi-contract">1. 定义 artifact 和 ABI contract</h3>
+<ul>
+<li>v1 只保护 app 自有 NDK <code>.so</code> 的选定 scalar function，先做 <code>arm64-v8a</code>；明确排除
+  system/framework library、Dex 和 resource。</li>
+<li>manifest 记录 <code>minSdk</code>、ABI、NDK/Clang/LLD/AGP、page-size mode 与 JNI registration。</li>
+<li>明确 exception/unwind、sanitizer、LTO、CFI 是首版拒绝还是修复 metadata 后支持。</li>
+</ul>
+<h3 id="2-release-build">2. 让函数选择适配 release build</h3>
+<ul>
+<li>尽可能在 strip 前保护。</li>
+<li>支持 source/link 阶段生成的稳定 symbol/section/address range/build-ID selection file，
+  不能只依赖 <code>.symtab</code>。</li>
+<li>保持 <code>JNI_OnLoad</code>、导出 JNI entry 和 <code>RegisterNatives</code> 引用地址有效。</li>
+<li>定义 ICF、LTO cloning、COMDAT、local/hidden symbol 行为。</li>
+</ul>
+<h3 id="3-android-et_dyn-writer">3. Android ET_DYN writer</h3>
+<ul>
+<li>建立多 NDK/API <code>.so</code> corpus。</li>
+<li>验证 Android/AArch64 与 ARM relocations、GNU/Android RELR/packed relocation、<code>.dynamic</code>、
+  GNU hash、build ID、symbol version 和 RELRO。</li>
+<li>保证 <code>p_offset ≡ p_vaddr (mod p_align)</code>，同时测试 4 KiB/16 KiB PT_LOAD。</li>
+<li>测试 PIE load bias、ASLR、APK 直接加载、binding 与 linker namespace。Bionic 文档记录了
+  RELR 等 Android linker 演进：<a href="https://android.googlesource.com/platform/bionic/+/master/android-changes-for-ndk-developers.md">Bionic linker changes</a>。</li>
+<li>首版对无法保持 exception/unwind 语义的函数应失败关闭。</li>
+</ul>
+<h3 id="4-runtimejniabi-qualification">4. Runtime/JNI/ABI qualification</h3>
+<ul>
+<li>分别测试普通 JNI、<code>@FastNative</code>、<code>@CriticalNative</code>；后者会改变 native signature 且有
+  API-level 限制。</li>
+<li>验证 thread-local <code>JNIEnv</code>、ART callback、native helper、signal、stack alignment、线程
+  stack size 和 recursion depth。</li>
+<li>审计 AArch64 GNU property、BTI/PAC；不能为了加载而删 property。</li>
+<li>在真机测 startup、JNI latency、memory、APK/AAB size，而不只用 emulator。</li>
+</ul>
+<h3 id="5-packaging-integration">5. Packaging integration</h3>
+<ul>
+<li>把保护后 <code>.so</code> 交给 Gradle <code>jniLibs</code> 或 external native build 打包。Android 支持
+  CMake/ndk-build 和 prebuilt library：
+  <a href="https://developer.android.com/studio/projects/gradle-external-native-builds">Gradle native integration</a>、
+  <a href="https://developer.android.com/ndk/guides/cmake">NDK CMake</a>。</li>
+<li>验证 ABI path、compression、ZIP/page alignment。</li>
+<li>Gradle/Play App Signing/现有 release system 继续持有签名密钥；myVMP 不接收生产私钥。</li>
+<li>seed 与详细 profile manifest 只保存在私有 CI，不随 APK 发布。</li>
+</ul>
+<h3 id="6-android-release-gates">6. Android release gates</h3>
+<ul>
+<li>每个支持 ABI 的最小 JNI app 和确定性 native behavior。</li>
+<li>debug/release、strip/unstrip、APK/AAB、extract/direct-load、4/16 KiB 组合。</li>
+<li>emulator + 代表性真机/API；比较 JNI result、crash、logcat、load time、memory。</li>
+<li><code>readelf</code>/<code>llvm-readobj</code>、<code>zipalign -c</code>、<code>apksigner verify</code>、<code>bundletool</code> alignment、安装与
+  upgrade test。</li>
+<li>stripped selection、unsupported relocation、Thumb、malformed package、unwind/CFI conflict、
+  detour space 不足等负面 fixture。</li>
+</ul>
+<h2 id="_5">难度分解</h2>
+<table>
+<thead>
+<tr>
+<th>里程碑</th>
+<th style="text-align: right;">难度</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>standalone arm64-v8a <code>.so</code> PoC</td>
+<td style="text-align: right;">中</td>
+<td>ISA/VM 已有，Android ET_DYN/package 验证没有</td>
+</tr>
+<tr>
+<td>生产级 arm64-v8a Gradle pipeline</td>
+<td style="text-align: right;">高</td>
+<td>toolchain matrix、symbol、16 KiB、签名顺序和设备测试</td>
+</tr>
+<tr>
+<td>强制 <code>-marm</code> 的受限 armeabi-v7a</td>
+<td style="text-align: right;">中高</td>
+<td>A32 可复用，但 compiler corpus/Android ABI 仍需验证</td>
+</tr>
+<tr>
+<td>正常 armeabi-v7a</td>
+<td style="text-align: right;">很高</td>
+<td>默认 Thumb-2 且可用 Neon，当前 A32 后端均未覆盖</td>
+</tr>
+<tr>
+<td>x86/x86_64 Android</td>
+<td style="text-align: right;">很高</td>
+<td>新 frontend/runtime/detour</td>
+</tr>
+<tr>
+<td>Java/Kotlin/Dex</td>
+<td style="text-align: right;">独立项目</td>
+<td>格式、runtime、威胁模型不同，native VM 不是捷径</td>
+</tr>
+<tr>
+<td>turnkey APK/AAB multi-ABI</td>
+<td style="text-align: right;">很高且长期</td>
+<td>所有 backend 加 Gradle/Play/持续兼容矩阵</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_6">建议阶段路线</h2>
+<ol>
+<li><strong>Feasibility corpus：</strong>收集目标 NDK 的 strip/unstrip arm64-v8a <code>.so</code>，只做 liftability
+   和 layout report，不写文件。</li>
+<li><strong>Standalone arm64 <code>.so</code>：</strong>保护 strip 前选定的 hidden scalar function，在最小 JNI app
+   的 emulator 与 16 KiB image 上加载执行。</li>
+<li><strong>Android-safe writer：</strong>通过 relocation、RELRO、4/16 KiB、direct-from-APK、malformed
+   gates，并定义 Android manifest schema。</li>
+<li><strong>Build integration：</strong>提供 versioned wrapper 与 Gradle/CMake 示例，签名前验证 APK/AAB。</li>
+<li><strong>Production qualification：</strong>NDK/AGP/API/device matrix、性能预算、crash 诊断、复现与升级。</li>
+<li><strong>ABI expansion：</strong>根据真实需求选择 Thumb-2 或 x86-64；只有 arm64 时不得声称完整
+   Android coverage。</li>
+</ol>
+<h2 id="_7">开发前决策门</h2>
+<p>开始实现前必须确定最低 Android API、支持的 NDK/AGP 范围、首个 ABI、symbol selection
+集成，以及 unwind、LTO/CFI、16 KiB 策略。第一项交付应是 compatibility/liftability
+报告，而不是 APK rewriting 命令。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

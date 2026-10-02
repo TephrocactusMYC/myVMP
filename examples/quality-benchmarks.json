@@ -1,0 +1,110 @@
+{
+  "schema": "myvmp.readme-benchmarks.v1",
+  "captured_on": "2026-09-04",
+  "method": {
+    "quality_comparison": "original function bytes versus concatenated encrypted VM block payload bytes",
+    "behavior_check": "stdout from original and protected ELF compared byte-for-byte under QEMU",
+    "important_note": "Function-region metrics and complete-ELF size measurements are intentionally reported separately."
+  },
+  "environment": {
+    "host": "Ubuntu 22.04 x86_64",
+    "aarch64_gcc": "11.4.0",
+    "riscv64_gcc": "11.4.0",
+    "qemu": "6.2.0"
+  },
+  "function_quality": [
+    {
+      "architecture": "ARM32/A32",
+      "symbol": "candidate_arm32_vm",
+      "vm_mode": "sibling",
+      "native_bytes": 68,
+      "encrypted_bytecode_bytes": 264,
+      "native_entropy": 4.127695,
+      "encrypted_bytecode_entropy": 7.241544,
+      "same_position_ratio": 0.0,
+      "longest_same_position_run": 0,
+      "aligned_word32_exposure_ratio": 0.0,
+      "aligned_word64_exposure_ratio": 0.0,
+      "source_literal32_exposure_ratio": 0.0,
+      "source_literal64_exposure_ratio": 0.0,
+      "thresholds_passed": true,
+      "qemu_behavior_identical": true
+    },
+    {
+      "architecture": "AArch64",
+      "symbol": "candidate_branch_ops",
+      "vm_mode": "sibling",
+      "native_bytes": 76,
+      "encrypted_bytecode_bytes": 197,
+      "native_entropy": 4.682182,
+      "encrypted_bytecode_entropy": 7.081294,
+      "same_position_ratio": 0.0,
+      "longest_same_position_run": 0,
+      "aligned_word32_exposure_ratio": 0.0,
+      "aligned_word64_exposure_ratio": 0.0,
+      "source_literal32_exposure_ratio": 0.0,
+      "source_literal64_exposure_ratio": 0.0,
+      "thresholds_passed": true,
+      "qemu_behavior_identical": true
+    },
+    {
+      "architecture": "RV64",
+      "symbol": "rv64_loop",
+      "vm_mode": "sibling",
+      "native_bytes": 32,
+      "encrypted_bytecode_bytes": 141,
+      "native_entropy": 4.601410,
+      "encrypted_bytecode_entropy": 6.627036,
+      "same_position_ratio": 0.0,
+      "longest_same_position_run": 0,
+      "aligned_word32_exposure_ratio": 0.0,
+      "aligned_word64_exposure_ratio": 0.0,
+      "source_literal32_exposure_ratio": 0.0,
+      "source_literal64_exposure_ratio": 0.0,
+      "thresholds_passed": true,
+      "qemu_behavior_identical": true
+    }
+  ],
+  "elf_size_cases": [
+    {
+      "architecture": "ARM32/A32",
+      "selection": "one function",
+      "original_bytes": 12596,
+      "protected_bytes": 12596,
+      "growth_bytes": 0,
+      "qemu_behavior_identical": true
+    },
+    {
+      "architecture": "AArch64",
+      "selection": "one function, sibling VM",
+      "original_bytes": 641280,
+      "protected_bytes": 706816,
+      "growth_bytes": 65536,
+      "qemu_behavior_identical": true
+    },
+    {
+      "architecture": "RV64",
+      "selection": "one function, sibling VM",
+      "original_bytes": 8736,
+      "protected_bytes": 16593,
+      "growth_bytes": 7857,
+      "qemu_behavior_identical": true
+    },
+    {
+      "architecture": "RV64",
+      "selection": "three functions, protect-many",
+      "original_bytes": 8736,
+      "protected_bytes": 25111,
+      "growth_bytes": 16375,
+      "qemu_behavior_identical": true
+    },
+    {
+      "architecture": "AArch64",
+      "selection": "one function in a >128 MiB PIE; far-page detour",
+      "original_bytes": 135275392,
+      "protected_bytes": 135340928,
+      "growth_bytes": 65536,
+      "qemu_behavior_identical": true
+    }
+  ]
+}
