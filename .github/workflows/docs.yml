@@ -7,6 +7,7 @@ on:
       - "docs/**"
       - "mkdocs.yml"
       - ".github/workflows/docs.yml"
+      - "scripts/check_mermaid_site.py"
   workflow_dispatch:
 
 concurrency:
@@ -35,9 +36,9 @@ jobs:
 
       - name: Verify Mermaid diagrams are emitted
         run: |
-          mkdocs build --strict
-          rg -q 'class="[^"]*mermaid' site/architecture/index.html
-          rg -q 'class="[^"]*mermaid' site/zh-CN/architecture/index.html
+          set -euxo pipefail
+          python -m mkdocs build --strict
+          python scripts/check_mermaid_site.py site
 
       - name: Build strictly and publish to gh-pages
-        run: mkdocs gh-deploy --force --strict --remote-branch gh-pages
+        run: python -m mkdocs gh-deploy --force --strict --remote-branch gh-pages

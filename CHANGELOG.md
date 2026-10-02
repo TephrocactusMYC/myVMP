@@ -9,6 +9,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed / 变更
 
+- Added a bilingual, implementation-grounded technical paper covering the architecture,
+  threat model, evaluation, attacker baseline and limitations; removed the Pages workflow's
+  dependency on an assumed `rg` executable when checking Mermaid output.
+- 新增中英双语技术论文稿，系统描述架构、威胁模型、评价、攻击者基线和局限；Pages 的 Mermaid
+  检查不再假设 runner 已安装 `rg`。
 - Extended the reference devirtualizer to reverse AArch64, ARM32 and RV64 runtime bytecode
   encoding without a sidecar, recover VM instructions and static CFG edges, and compare
   them with sidecars in real protected-ELF regressions. Handler effects and source-level

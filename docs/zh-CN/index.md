@@ -16,6 +16,7 @@
 
 ## 设计文档
 
+- [技术论文](paper.md)：基于实际实现、按研究论文组织的威胁模型、方法、评价和局限。
 - [架构](architecture.md)：模块、数据流、ELF 改写和 runtime ABI。
 - [混淆](obfuscation.md)：动态 profile、operand codec、块加密、多态和 sibling multi-VM。
 - [安全模型](security-model.md)：威胁模型、保证、失败关闭边界和限制。

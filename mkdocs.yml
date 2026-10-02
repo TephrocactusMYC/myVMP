@@ -27,6 +27,7 @@ nav:
       - Benchmarks: readme-benchmarks.md
       - Testing: testing.md
   - Design:
+      - Technical Paper: paper.md
       - Architecture: architecture.md
       - Obfuscation: obfuscation.md
       - Security Model: security-model.md
@@ -41,6 +42,7 @@ nav:
       - 实测基准: zh-CN/readme-benchmarks.md
       - 测试: zh-CN/testing.md
       - 架构: zh-CN/architecture.md
+      - 技术论文: zh-CN/paper.md
       - 混淆设计: zh-CN/obfuscation.md
       - 安全模型: zh-CN/security-model.md
       - 调研与参考: zh-CN/research.md

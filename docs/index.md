@@ -21,6 +21,8 @@ security model before integrating myVMP into a release pipeline.
 
 ## Design documentation
 
+- [Technical paper](paper.md) — implementation-grounded, research-style account of the
+  threat model, mechanisms, evaluation and limitations.
 - [Architecture](architecture.md) — modules, data flow, ELF transformation and runtime ABI.
 - [Obfuscation](obfuscation.md) — dynamic profiles, operand codec, block encryption,
   polymorphism, superoperators and sibling multi-VM.
